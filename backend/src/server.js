@@ -23,10 +23,10 @@ connectDB();
 const app = express();
 const server = http.createServer(app);
 
-// 1. Updated CORS configuration for Local + Production
+// 1. Updated CORS configuration: Apne Vercel app ka actual URL yahan daalein
 const allowedOrigins = [
   'http://localhost:5173', 
-  'https://YOUR_ACTUAL_VERCEL_APP_URL.vercel.app' // Yahan apna live Vercel URL dalein
+  'https://deploywatch.vercel.app' 
 ];
 
 // Socket.io setup with strict CORS
@@ -62,6 +62,7 @@ const limiter = rateLimit({
 // 2. Updated API CORS middleware
 app.use(cors({
   origin: function (origin, callback) {
+    // !origin check mobile apps/server-to-server requests ke liye zaroori hai
     if (!origin || allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
