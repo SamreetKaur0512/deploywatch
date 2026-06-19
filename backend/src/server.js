@@ -23,47 +23,54 @@ connectDB();
 const app = express();
 const server = http.createServer(app);
 
-// Socket.io setup
+// 1. Updated CORS configuration for Local + Production
+const allowedOrigins = [
+  'http://localhost:5173', 
+  'https://YOUR_ACTUAL_VERCEL_APP_URL.vercel.app' // Yahan apna live Vercel URL dalein
+];
+
+// Socket.io setup with strict CORS
 const io = new Server(server, {
   cors: {
-    origin: process.env.CLIENT_URL || 'http://localhost:5173',
+    origin: allowedOrigins,
     methods: ['GET', 'POST'],
+    credentials: true,
   },
 });
 
-// Make io accessible in routes/controllers
 app.set('io', io);
 
 // Socket connection handler
 io.on('connection', (socket) => {
   console.log(`🔌 Socket connected: ${socket.id}`);
-
-  // User joins their own room using their userId
   socket.on('join', (userId) => {
     socket.join(userId);
-    console.log(`👤 User ${userId} joined room`);
   });
-
   socket.on('disconnect', () => {
     console.log(`🔌 Socket disconnected: ${socket.id}`);
   });
 });
 
-// Init cron jobs
 initCronJobs(io);
 
 // Rate limiter
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
+  windowMs: 15 * 60 * 1000,
   max: 100,
-  message: { success: false, message: 'Too many requests. Please try again later.' },
 });
 
-// Middleware — allow all origins so tracking script works from any deployed domain
+// 2. Updated API CORS middleware
 app.use(cors({
-  origin: function (origin, callback) { callback(null, true); },
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
 }));
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
@@ -78,27 +85,19 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/projects/:id', projectUsersRoutes);
 app.use('/tracking.js', trackingRoutes);
 
-// Health check
 app.get('/health', (req, res) => {
-  res.status(200).json({
-    success: true,
-    message: '🚀 DeployWatch API is running!',
-    timestamp: new Date().toISOString(),
-  });
+  res.status(200).json({ success: true, message: '🚀 DeployWatch API is running!' });
 });
 
-// 404 handler
 app.use((req, res) => {
   res.status(404).json({ success: false, message: 'Route not found.' });
 });
 
-// Error handler (must be last)
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`\n🚀 DeployWatch Server running on port ${PORT}`);
-  console.log(`📡 Environment: ${process.env.NODE_ENV || 'development'}\n`);
 });
 
 module.exports = { app, io };
