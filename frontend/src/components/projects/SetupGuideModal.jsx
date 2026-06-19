@@ -185,33 +185,37 @@ router.afterEach(() => {
               <div className="sgm-step-icon" style={{ background: 'var(--purple-dim)', color: 'var(--purple)' }}>
                 <Users size={20} />
               </div>
-              <h3 className="sgm-step-title">Track Logged-in Users</h3>
+              <h3 className="sgm-step-title">Visitor & Login Tracking</h3>
               <p className="sgm-step-desc">
-                Optional but powerful — see <strong>who exactly</strong> viewed your project with their name and email in Analytics.
+                <strong>No extra code needed!</strong> The tracking script automatically detects logged-in users from your project.
               </p>
 
-              <div className="sgm-code-block" style={{ marginBottom: '1rem' }}>
-                <div className="sgm-code-label">
-                  <Code size={12} /> Add after login success in your project:
+              <div className="sgm-info-box">
+                <div className="sgm-info-title">🤖 What the script auto-detects:</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.5rem' }}>
+                  {[
+                    ['localStorage / sessionStorage', 'Checks common keys: user, currentUser, userData, authUser, profile, me'],
+                    ['JWT Token', 'Decodes your auth token and extracts name & email automatically'],
+                    ['Global variables', 'Checks window.user, window.currentUser, window.authUser'],
+                    ['Route changes (SPA)', 'Auto-tracks React Router, Vue Router page navigations'],
+                  ].map(([title, desc]) => (
+                    <div key={title} style={{ display: 'flex', gap: '0.6rem', padding: '0.5rem 0.75rem', background: 'var(--bg-elevated)', borderRadius: '6px', fontSize: '0.78rem' }}>
+                      <span style={{ color: 'var(--green)', flexShrink: 0 }}>✅</span>
+                      <div><strong style={{ color: 'var(--text-primary)' }}>{title}</strong><br /><span style={{ color: 'var(--text-muted)' }}>{desc}</span></div>
+                    </div>
+                  ))}
                 </div>
-                <pre className="sgm-code mono">{loginScript}</pre>
-                <button className="sgm-copy-btn" onClick={() => copyText(loginScript, 'login')}>
-                  {copied === 'login' ? <><Check size={12} /> Copied!</> : <><Copy size={12} /> Copy</>}
-                </button>
               </div>
 
-              <div className="sgm-code-block">
-                <div className="sgm-code-label">
-                  <Code size={12} /> For SPA apps — track on every page/route change:
-                </div>
-                <pre className="sgm-code mono">{spaScript}</pre>
-                <button className="sgm-copy-btn" onClick={() => copyText(spaScript, 'spa')}>
-                  {copied === 'spa' ? <><Check size={12} /> Copied!</> : <><Copy size={12} /> Copy</>}
-                </button>
+              <div className="sgm-tip">
+                💡 <strong>No login system?</strong> No problem! Script will still track anonymous views with country, device, browser and time.
               </div>
 
-              <div className="sgm-tip" style={{ marginTop: '1rem' }}>
-                💡 If your project has <strong>no login system</strong>, skip this step — anonymous views will still show country, device, and time in Analytics.
+              <div className="sgm-note">
+                ℹ️ <strong>Optional manual call</strong> — if auto-detect misses something, you can manually call:<br />
+                <code style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--accent)' }}>
+                  window.deployWatchTrackView({'{'} visitorName: 'John', visitorEmail: 'john@email.com' {'}'})
+                </code>
               </div>
             </div>
           )}
