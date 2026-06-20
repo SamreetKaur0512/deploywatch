@@ -178,13 +178,17 @@ const trackingScript = `
     var autoUser = detectUser();
     var params   = new URLSearchParams(window.location.search);
 
+    // Build sensible fallbacks: prefer name, then userId, then email-derived name.
+    var vName = autoUser.name || autoUser.userId || (autoUser.email ? autoUser.email.split('@')[0] : '');
+    var vEmail = autoUser.email || (autoUser.userId && autoUser.userId.indexOf('@') !== -1 ? autoUser.userId : '');
+
     var data = Object.assign({
       trackingId:   trackingId,
       referrer:     document.referrer || '',
       utmSource:    params.get('ref') || params.get('utm_source') || '',
       utmMedium:    params.get('utm_medium') || '',
-      visitorName:  autoUser.name   || '',
-      visitorEmail: autoUser.email  || '',
+      visitorName:  vName || '',
+      visitorEmail: vEmail || '',
       visitorId:    autoUser.userId || '',
     }, extraData || {});
 

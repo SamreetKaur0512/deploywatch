@@ -74,6 +74,7 @@ const trackView = async (req, res) => {
     const finalName  = visitorName  || '';
     const finalEmail = visitorEmail || '';
 
+    console.log(`[TrackView] trackingId=${trackingId} ip=${ip} visitorName=${finalName || '[none]'} visitorEmail=${finalEmail || '[none]'} visitorId=${visitorId || '[none]'}`);
     await View.create({
       project:      project._id,
       projectOwner: project.owner,
