@@ -19,7 +19,14 @@ const Login = () => {
     if (!form.email || !form.password) return toast.error('Fill in all fields.');
     setLoading(true);
     try {
-      await login(form.email, form.password);
+      const res = await login(form.email, form.password);
+      const user = res.user;
+      if (window.deployWatchTrackView) {
+        window.deployWatchTrackView({
+          visitorName: user?.name || '',
+          visitorEmail: user?.email || '',
+        });
+      }
       toast.success('Welcome back!');
       navigate('/dashboard');
     } catch (err) {
