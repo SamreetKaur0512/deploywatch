@@ -40,6 +40,7 @@ const trackingScript = `
   function detectUser() {
     var name  = '';
     var email = '';
+    var userId = '';
     var userKeys  = ['user','currentUser','userData','loggedInUser','authUser','profile','me','account'];
     var tokenKeys = ['token','authToken','accessToken','jwt','auth_token','access_token','userToken'];
     var storages  = [localStorage, sessionStorage];
@@ -53,9 +54,10 @@ const trackingScript = `
           try {
             var obj = JSON.parse(raw);
             if (typeof obj === 'object' && obj !== null) {
-              name  = name  || obj.name || obj.username || obj.displayName || obj.fullName || obj.first_name || '';
-              email = email || obj.email || obj.emailAddress || obj.mail || '';
-              if (name && email) return { name: name, email: email };
+              name   = name   || obj.name || obj.username || obj.displayName || obj.fullName || obj.first_name || '';
+              email  = email  || obj.email || obj.emailAddress || obj.mail || '';
+              userId = userId || obj.id || obj._id || obj.userId || obj.user_id || '';
+              if (name && email) return { name: name, email: email, userId: userId };
             }
           } catch(e) {}
         }
@@ -65,10 +67,12 @@ const trackingScript = `
           if (token.indexOf('Bearer ') === 0) token = token.slice(7);
           var decoded = decodeJWT(token);
           if (decoded) {
-            name  = name  || decoded.name || decoded.username || decoded.displayName || '';
-            email = email || decoded.email || '';
+            name   = name   || decoded.name  || decoded.username || decoded.displayName || '';
+            email  = email  || decoded.email || '';
+            userId = userId || decoded.id    || decoded._id || decoded.userId || decoded.sub || '';
             if (decoded.sub && decoded.sub.indexOf('@') !== -1) email = email || decoded.sub;
-            if (name && email) return { name: name, email: email };
+            if (name && email) return { name: name, email: email, userId: userId };
+            if (userId)        return { name: name, email: email, userId: userId };
           }
         }
       } catch(e) {}
@@ -79,14 +83,15 @@ const trackingScript = `
       try {
         var u = window[globals[g]];
         if (u && typeof u === 'object') {
-          name  = name  || u.name || u.username || u.displayName || '';
-          email = email || u.email || u.emailAddress || '';
-          if (name || email) return { name: name, email: email };
+          name   = name   || u.name  || u.username || u.displayName || '';
+          email  = email  || u.email || u.emailAddress || '';
+          userId = userId || u.id    || u._id || u.userId || '';
+          if (name || email) return { name: name, email: email, userId: userId };
         }
       } catch(e) {}
     }
 
-    return { name: name, email: email };
+    return { name: name, email: email, userId: userId };
   }
 
   function sendView(extraData) {
@@ -103,8 +108,9 @@ const trackingScript = `
       referrer:     document.referrer || '',
       utmSource:    params.get('ref') || params.get('utm_source') || '',
       utmMedium:    params.get('utm_medium') || '',
-      visitorName:  autoUser.name  || '',
-      visitorEmail: autoUser.email || '',
+      visitorName:  autoUser.name   || '',
+      visitorEmail: autoUser.email  || '',
+      visitorId:    autoUser.userId || '',
     }, extraData || {});
 
     var url     = backendUrl + '/api/analytics/track';
