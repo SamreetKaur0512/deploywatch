@@ -20,45 +20,30 @@ const parseBrowser = (ua = '') => {
   return 'Unknown';
 };
 
-// Helper: fetch user from developer's external DB using visitorId
 const fetchVisitorFromDB = async (project, visitorId) => {
   try {
     if (!project.hasMongoUri && !project.hasDbCredentials) return null;
     if (!visitorId) return null;
-
-    const { decrypt } = require('../utils/cryptoHelper');
     const ProjectModel = require('../models/Project');
-
     const fullProject = await ProjectModel.findById(project._id)
       .select('+encryptedMongoUri +encryptedDbUri');
-
-    let uri = '';
-    if (fullProject.encryptedMongoUri) uri = await decrypt(fullProject.encryptedMongoUri);
-    else if (fullProject.encryptedDbUri) uri = await decrypt(fullProject.encryptedDbUri);
+    let uri = fullProject.encryptedMongoUri || fullProject.encryptedDbUri || '';
     if (!uri) return null;
-
     const conn = await mongoose.createConnection(uri, { serverSelectionTimeoutMS: 5000 });
     const schema = new mongoose.Schema({}, { strict: false });
     const collectionName = project.userCollection || 'users';
-
     let UserModel;
     try { UserModel = conn.model(collectionName); }
     catch { UserModel = conn.model(collectionName, schema, collectionName); }
-
     const user = await UserModel.findById(visitorId)
-      .select('-password -passwordHash -passwd -pwd -hash -salt')
-      .lean();
-
+      .select('-password -passwordHash -passwd -pwd -hash -salt').lean();
     await conn.close();
     if (!user) return null;
-
     return {
       name:  user.name || user.username || user.displayName || '',
       email: user.email || user.emailAddress || '',
     };
-  } catch (e) {
-    return null;
-  }
+  } catch (e) { return null; }
 };
 
 const trackView = async (req, res) => {
@@ -74,7 +59,6 @@ const trackView = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Project not found or tracking disabled.' });
     }
 
-    // Get real visitor IP
     const ip =
       req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
       req.headers['x-real-ip'] ||
@@ -82,7 +66,6 @@ const trackView = async (req, res) => {
       req.socket?.remoteAddress ||
       'unknown';
 
-    // Geo lookup
     let country = 'Unknown';
     let city    = 'Unknown';
     try {
@@ -103,7 +86,6 @@ const trackView = async (req, res) => {
       recruiterSources.some((s) => (utmSource || '').toLowerCase().includes(s)) ||
       recruiterSources.some((s) => (referrer  || '').toLowerCase().includes(s));
 
-    // Deduplicate — same IP within 5 seconds
     const recentDuplicate = await View.findOne({
       project: project._id,
       ipAddress: ip,
@@ -113,16 +95,12 @@ const trackView = async (req, res) => {
       return res.status(200).json({ success: true, message: 'View already tracked recently.' });
     }
 
-    // Unique visitor check
-    const previousVisit  = await View.findOne({ project: project._id, ipAddress: ip });
+    const previousVisit   = await View.findOne({ project: project._id, ipAddress: ip });
     const isUniqueVisitor = !previousVisit;
 
-    // Try to get visitor name/email
-    // 1. Use what script sent directly
     let finalName  = visitorName  || '';
     let finalEmail = visitorEmail || '';
 
-    // 2. If only userId came (JWT had no name/email), fetch from developer's DB
     if ((!finalName || !finalEmail) && visitorId && project.hasMongoUri) {
       const fetched = await fetchVisitorFromDB(project, visitorId);
       if (fetched) {
@@ -131,7 +109,6 @@ const trackView = async (req, res) => {
       }
     }
 
-    // Create view
     await View.create({
       project:      project._id,
       projectOwner: project.owner,
@@ -149,7 +126,6 @@ const trackView = async (req, res) => {
       visitorEmail: finalEmail,
     });
 
-    // Update counters
     await Project.findByIdAndUpdate(project._id, {
       $inc: {
         totalViews: 1,
@@ -157,7 +133,6 @@ const trackView = async (req, res) => {
       },
     });
 
-    // Real-time notification
     const io = req.app.get('io');
     if (io) {
       const notifData = {
@@ -215,3 +190,141 @@ const trackView = async (req, res) => {
     res.status(500).json({ success: false, message: 'Tracking failed.' });
   }
 };
+
+const getDashboardStats = async (req, res, next) => {
+  try {
+    const userId = req.user._id;
+    const projects = await Project.find({ owner: userId });
+    const totalProjects       = projects.length;
+    const activeProjects      = projects.filter((p) => p.status === 'active').length;
+    const downProjects        = projects.filter((p) => p.status === 'down').length;
+    const totalViews          = projects.reduce((sum, p) => sum + (p.totalViews || 0), 0);
+    const totalUniqueVisitors = projects.reduce((sum, p) => sum + (p.uniqueVisitors || 0), 0);
+
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const viewsToday = await View.countDocuments({
+      projectOwner: userId,
+      viewedAt: { $gte: todayStart },
+    });
+
+    const weekStart = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const viewsThisWeek = await View.countDocuments({
+      projectOwner: userId,
+      viewedAt: { $gte: weekStart },
+    });
+
+    const recruiterVisits = await View.countDocuments({
+      projectOwner: userId,
+      isRecruiter: true,
+    });
+
+    const unreadNotifications = await Notification.countDocuments({
+      recipient: userId,
+      isRead: false,
+    });
+
+    const topProjects = [...projects]
+      .sort((a, b) => (b.totalViews || 0) - (a.totalViews || 0))
+      .slice(0, 5)
+      .map((p, idx) => ({
+        rank: idx + 1,
+        _id: p._id,
+        name: p.name,
+        platform: p.platform,
+        status: p.status,
+        totalViews: p.totalViews || 0,
+        liveUrl: p.liveUrl,
+      }));
+
+    const dailyViews = await View.aggregate([
+      { $match: { projectOwner: userId, viewedAt: { $gte: weekStart } } },
+      {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$viewedAt' } },
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
+
+    const deviceStats = await View.aggregate([
+      { $match: { projectOwner: userId } },
+      { $group: { _id: '$device', count: { $sum: 1 } } },
+    ]);
+
+    const countryStats = await View.aggregate([
+      { $match: { projectOwner: userId } },
+      { $group: { _id: '$country', count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+      { $limit: 8 },
+    ]);
+
+    res.status(200).json({
+      success: true,
+      stats: {
+        totalProjects,
+        activeProjects,
+        downProjects,
+        totalViews,
+        totalUniqueVisitors,
+        viewsToday,
+        viewsThisWeek,
+        recruiterVisits,
+        unreadNotifications,
+      },
+      topProjects,
+      dailyViews,
+      deviceStats,
+      countryStats,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getAllViews = async (req, res, next) => {
+  try {
+    const page  = parseInt(req.query.page)  || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip  = (page - 1) * limit;
+
+    const total = await View.countDocuments({ projectOwner: req.user._id });
+    const views = await View.find({ projectOwner: req.user._id })
+      .populate('project', 'name platform liveUrl')
+      .sort({ viewedAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    res.status(200).json({
+      success: true,
+      total,
+      page,
+      pages: Math.ceil(total / limit),
+      views,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getProjectRankings = async (req, res, next) => {
+  try {
+    const projects = await Project.find({ owner: req.user._id }).sort({ totalViews: -1 });
+    const rankings = projects.map((p, idx) => ({
+      rank: idx + 1,
+      _id: p._id,
+      name: p.name,
+      platform: p.platform,
+      status: p.status,
+      totalViews: p.totalViews || 0,
+      liveUrl: p.liveUrl,
+      lastChecked: p.lastChecked,
+    }));
+    res.status(200).json({ success: true, rankings });
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = { trackView, getDashboardStats, getAllViews, getProjectRankings };
