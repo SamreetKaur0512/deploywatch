@@ -17,22 +17,14 @@ const adminRoutes = require('./routes/admin');
 const { initCronJobs } = require('./utils/cronJobs');
 const projectUsersRoutes = require('./routes/projectUsers');
 
-// Connect to MongoDB
 connectDB();
 
-const app = express();
+const app    = express();
 const server = http.createServer(app);
 
-// 1. Updated CORS configuration: Apne Vercel app ka actual URL yahan daalein
-const allowedOrigins = [
-  'http://localhost:5173', 
-  'https://deploywatch.vercel.app' 
-];
-
-// Socket.io setup with strict CORS
 const io = new Server(server, {
   cors: {
-    origin: allowedOrigins,
+    origin: function (origin, callback) { callback(null, true); },
     methods: ['GET', 'POST'],
     credentials: true,
   },
@@ -40,32 +32,34 @@ const io = new Server(server, {
 
 app.set('io', io);
 
-// Socket connection handler
 io.on('connection', (socket) => {
   console.log(`🔌 Socket connected: ${socket.id}`);
-  socket.on('join', (userId) => {
-    socket.join(userId);
-  });
-  socket.on('disconnect', () => {
-    console.log(`🔌 Socket disconnected: ${socket.id}`);
-  });
+  socket.on('join', (userId) => { socket.join(userId); });
+  socket.on('disconnect', () => { console.log(`🔌 Socket disconnected: ${socket.id}`); });
 });
 
 initCronJobs(io);
 
-// Rate limiter
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
-});
-app.use(cors({
-  origin: function (origin, callback) { callback(null, true); },
-  credentials: false,
-}));
+const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 100 });
 
 app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  const origin = req.headers.origin;
+
+  if (req.path === '/api/analytics/track' || req.path.startsWith('/tracking')) {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type');
+    if (req.method === 'OPTIONS') return res.sendStatus(200);
+    return next();
+  }
+
+  if (origin) {
+    res.header('Access-Control-Allow-Origin', origin);
+  } else {
+    res.header('Access-Control-Allow-Origin', '*');
+  }
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method === 'OPTIONS') return res.sendStatus(200);
   next();
@@ -76,14 +70,13 @@ app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
 app.use('/api/', limiter);
 
-// Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/projects', projectRoutes);
-app.use('/api/analytics', analyticsRoutes);
-app.use('/api/notifications', notificationRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/projects/:id', projectUsersRoutes);
-app.use('/tracking.js', trackingRoutes);
+app.use('/api/auth',          authRoutes);
+app.use('/api/projects',      projectRoutes);
+app.use('/api/analytics',     analyticsRoutes);
+app.use('/api/notifications',  notificationRoutes);
+app.use('/api/admin',         adminRoutes);
+app.use('/api/projects/:id',  projectUsersRoutes);
+app.use('/tracking.js',       trackingRoutes);
 
 app.get('/health', (req, res) => {
   res.status(200).json({ success: true, message: '🚀 DeployWatch API is running!' });
