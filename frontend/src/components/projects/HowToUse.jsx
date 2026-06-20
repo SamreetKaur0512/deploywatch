@@ -153,13 +153,29 @@ fetch('${BACKEND_URL}/api/analytics/track', {
             <span className="htu-num">Step 3 (Optional) — Track Logged-in Users</span>
             <h4 className="htu-title">See visitor name & email in Analytics</h4>
             <p className="htu-desc">
-              If your project has login, call this after a user logs in — their name and email will appear in your Analytics table and notifications. If login happens after the page loads, this explicit call is required.
+              To reliably capture a visitor's name and email, call the tracking function immediately after your app successfully logs a user in. This is required when the app keeps user info only on the server or in HttpOnly cookies.
             </p>
+            <div style={{ marginBottom: '0.5rem', fontSize: '0.86rem', color: 'var(--text-secondary)' }}>
+              Where to put it:
+              <ul style={{ marginTop: 6, marginBottom: 6 }}>
+                <li>React: inside your login success callback (after you set auth state).</li>
+                <li>Next.js: after signIn callback or in client-side code when session becomes available.</li>
+                <li>Vue / Angular / Plain JS: right after the login promise resolves or when you receive the user object.</li>
+              </ul>
+            </div>
             <div className="htu-code-wrap">
               <pre className="htu-code mono">{loginSnippet}</pre>
               <button className="btn btn-secondary btn-sm htu-copy-btn" onClick={() => copyText(loginSnippet, 'login')}>
                 {copied === 'login' ? '✓ Copied' : 'Copy'}
               </button>
+            </div>
+            <div style={{ marginTop: '0.6rem', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+              Example (React):
+              <pre className="htu-code mono" style={{ marginTop: 6 }}>
+{`// after login success
+setUser(user);
+window.deployWatchTrackView({ visitorName: user.name, visitorEmail: user.email });`}
+              </pre>
             </div>
           </div>
 

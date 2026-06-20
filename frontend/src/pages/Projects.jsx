@@ -153,6 +153,9 @@ const Projects = () => {
                         : <Copy size={12} />}
                     </button>
                   </div>
+                    <div style={{ marginTop: '0.4rem', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                      To capture logged-in users' name & email, call <strong>window.deployWatchTrackView({'{ visitorName, visitorEmail }'})</strong> immediately after your app logs a user in. See How to use → Step 3 for examples.
+                    </div>
                 </div>
 
                 {p.techStack?.length > 0 && (
