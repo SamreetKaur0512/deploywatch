@@ -39,8 +39,8 @@ const trackingScript = `
 
   function detectUser() {
     var name = '', email = '', userId = '';
-    var userKeys  = ['user','currentUser','userData','loggedInUser','authUser','profile','me','account'];
-    var tokenKeys = ['token','authToken','accessToken','jwt','auth_token','access_token','userToken'];
+    var userKeys  = ['dw_user','user','currentUser','userData','loggedInUser','authUser','profile','me','account'];
+    var tokenKeys = ['dw_token','token','authToken','accessToken','jwt','auth_token','access_token','userToken'];
     var storages  = [localStorage, sessionStorage];
 
     for (var s = 0; s < storages.length; s++) {
