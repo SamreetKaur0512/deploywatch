@@ -2,7 +2,6 @@ const { sendViewNotificationEmail } = require("../utils/emailService");
 const View = require('../models/View');
 const Project = require('../models/Project');
 const Notification = require('../models/Notification');
-const mongoose = require('mongoose');
 
 const parseDevice = (ua = '') => {
   if (/mobile/i.test(ua)) return 'Mobile';
@@ -18,32 +17,6 @@ const parseBrowser = (ua = '') => {
   if (/edge/i.test(ua)) return 'Edge';
   if (/msie|trident/i.test(ua)) return 'IE';
   return 'Unknown';
-};
-
-const fetchVisitorFromDB = async (project, visitorId) => {
-  try {
-    if (!project.hasMongoUri && !project.hasDbCredentials) return null;
-    if (!visitorId) return null;
-    const ProjectModel = require('../models/Project');
-    const fullProject = await ProjectModel.findById(project._id)
-      .select('+encryptedMongoUri +encryptedDbUri');
-    let uri = fullProject.encryptedMongoUri || fullProject.encryptedDbUri || '';
-    if (!uri) return null;
-    const conn = await mongoose.createConnection(uri, { serverSelectionTimeoutMS: 5000 });
-    const schema = new mongoose.Schema({}, { strict: false });
-    const collectionName = project.userCollection || 'users';
-    let UserModel;
-    try { UserModel = conn.model(collectionName); }
-    catch { UserModel = conn.model(collectionName, schema, collectionName); }
-    const user = await UserModel.findById(visitorId)
-      .select('-password -passwordHash -passwd -pwd -hash -salt').lean();
-    await conn.close();
-    if (!user) return null;
-    return {
-      name:  user.name || user.username || user.displayName || '',
-      email: user.email || user.emailAddress || '',
-    };
-  } catch (e) { return null; }
 };
 
 const trackView = async (req, res) => {
@@ -67,24 +40,24 @@ const trackView = async (req, res) => {
       'unknown';
 
     let country = 'Unknown';
-    let city    = 'Unknown';
+    let city = 'Unknown';
     try {
       const geoip = require('geoip-lite');
-      const geo   = geoip.lookup(ip);
+      const geo = geoip.lookup(ip);
       if (geo) {
         country = geo.country || 'Unknown';
-        city    = geo.city    || 'Unknown';
+        city = geo.city || 'Unknown';
       }
     } catch (e) {}
 
-    const ua      = req.headers['user-agent'] || '';
-    const device  = parseDevice(ua);
+    const ua = req.headers['user-agent'] || '';
+    const device = parseDevice(ua);
     const browser = parseBrowser(ua);
 
     const recruiterSources = ['linkedin', 'naukri', 'indeed', 'resume', 'cv', 'recruiter'];
     const isRecruiter =
       recruiterSources.some((s) => (utmSource || '').toLowerCase().includes(s)) ||
-      recruiterSources.some((s) => (referrer  || '').toLowerCase().includes(s));
+      recruiterSources.some((s) => (referrer || '').toLowerCase().includes(s));
 
     const recentDuplicate = await View.findOne({
       project: project._id,
@@ -95,19 +68,11 @@ const trackView = async (req, res) => {
       return res.status(200).json({ success: true, message: 'View already tracked recently.' });
     }
 
-    const previousVisit   = await View.findOne({ project: project._id, ipAddress: ip });
+    const previousVisit = await View.findOne({ project: project._id, ipAddress: ip });
     const isUniqueVisitor = !previousVisit;
 
-    let finalName  = visitorName  || '';
-    let finalEmail = visitorEmail || '';
-
-    if ((!finalName || !finalEmail) && visitorId && project.hasMongoUri) {
-      const fetched = await fetchVisitorFromDB(project, visitorId);
-      if (fetched) {
-        finalName  = finalName  || fetched.name;
-        finalEmail = finalEmail || fetched.email;
-      }
-    }
+    const finalName  = visitorName  || '';
+    const finalEmail = visitorEmail || '';
 
     await View.create({
       project:      project._id,
@@ -195,6 +160,7 @@ const getDashboardStats = async (req, res, next) => {
   try {
     const userId = req.user._id;
     const projects = await Project.find({ owner: userId });
+
     const totalProjects       = projects.length;
     const activeProjects      = projects.filter((p) => p.status === 'active').length;
     const downProjects        = projects.filter((p) => p.status === 'down').length;

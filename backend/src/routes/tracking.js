@@ -38,9 +38,7 @@ const trackingScript = `
   }
 
   function detectUser() {
-    var name  = '';
-    var email = '';
-    var userId = '';
+    var name = '', email = '', userId = '';
     var userKeys  = ['user','currentUser','userData','loggedInUser','authUser','profile','me','account'];
     var tokenKeys = ['token','authToken','accessToken','jwt','auth_token','access_token','userToken'];
     var storages  = [localStorage, sessionStorage];
@@ -54,9 +52,9 @@ const trackingScript = `
           try {
             var obj = JSON.parse(raw);
             if (typeof obj === 'object' && obj !== null) {
-              name   = name   || obj.name || obj.username || obj.displayName || obj.fullName || obj.first_name || '';
+              name   = name   || obj.name || obj.username || obj.displayName || obj.fullName || '';
               email  = email  || obj.email || obj.emailAddress || obj.mail || '';
-              userId = userId || obj.id || obj._id || obj.userId || obj.user_id || '';
+              userId = userId || obj.id || obj._id || obj.userId || '';
               if (name && email) return { name: name, email: email, userId: userId };
             }
           } catch(e) {}
@@ -67,9 +65,9 @@ const trackingScript = `
           if (token.indexOf('Bearer ') === 0) token = token.slice(7);
           var decoded = decodeJWT(token);
           if (decoded) {
-            name   = name   || decoded.name  || decoded.username || decoded.displayName || '';
+            name   = name   || decoded.name  || decoded.username || '';
             email  = email  || decoded.email || '';
-            userId = userId || decoded.id    || decoded._id || decoded.userId || decoded.sub || '';
+            userId = userId || decoded.id || decoded._id || decoded.userId || decoded.sub || '';
             if (decoded.sub && decoded.sub.indexOf('@') !== -1) email = email || decoded.sub;
             if (name && email) return { name: name, email: email, userId: userId };
             if (userId)        return { name: name, email: email, userId: userId };
@@ -78,7 +76,7 @@ const trackingScript = `
       } catch(e) {}
     }
 
-    var globals = ['currentUser','user','authUser','loggedInUser','__user','APP_USER'];
+    var globals = ['currentUser','user','authUser','loggedInUser','__user'];
     for (var g = 0; g < globals.length; g++) {
       try {
         var u = window[globals[g]];
@@ -86,7 +84,7 @@ const trackingScript = `
           name   = name   || u.name  || u.username || u.displayName || '';
           email  = email  || u.email || u.emailAddress || '';
           userId = userId || u.id    || u._id || u.userId || '';
-          if (name || email) return { name: name, email: email, userId: userId };
+          if (name || email || userId) return { name: name, email: email, userId: userId };
         }
       } catch(e) {}
     }
@@ -113,13 +111,10 @@ const trackingScript = `
       visitorId:    autoUser.userId || '',
     }, extraData || {});
 
-    var url     = backendUrl + '/api/analytics/track';
-    var payload = JSON.stringify(data);
-
-    fetch(url, {
+    fetch(backendUrl + '/api/analytics/track', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: payload,
+      body: JSON.stringify(data),
       mode: 'cors',
       credentials: 'omit'
     }).catch(function() {});
@@ -133,9 +128,9 @@ const trackingScript = `
 
   ready(function() { sendView(); });
 
-  var _pushState    = history.pushState;
+  var _pushState = history.pushState;
   var _replaceState = history.replaceState;
-  var lastPath      = location.pathname;
+  var lastPath = location.pathname;
 
   function onRouteChange() {
     var currentPath = location.pathname;
@@ -145,16 +140,9 @@ const trackingScript = `
     }
   }
 
-  history.pushState = function() {
-    _pushState.apply(history, arguments);
-    onRouteChange();
-  };
-  history.replaceState = function() {
-    _replaceState.apply(history, arguments);
-    onRouteChange();
-  };
+  history.pushState = function() { _pushState.apply(history, arguments); onRouteChange(); };
+  history.replaceState = function() { _replaceState.apply(history, arguments); onRouteChange(); };
   window.addEventListener('popstate', onRouteChange);
-
   window.deployWatchTrackView = sendView;
 })();
 `;

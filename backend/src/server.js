@@ -45,11 +45,8 @@ const limiter = rateLimit({
   skip: (req) => req.path === '/api/analytics/track',
 });
 
-// ── Single CORS middleware — handles everything ──
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-
-  // Tracking — allow all, no credentials
   if (req.path === '/api/analytics/track' || req.path.startsWith('/tracking')) {
     res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -57,8 +54,6 @@ app.use((req, res, next) => {
     if (req.method === 'OPTIONS') return res.sendStatus(200);
     return next();
   }
-
-  // Everything else — reflect origin with credentials
   res.header('Access-Control-Allow-Origin', origin || '*');
   res.header('Access-Control-Allow-Credentials', 'true');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
@@ -72,13 +67,13 @@ app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
 app.use('/api/', limiter);
 
-app.use('/api/auth',           authRoutes);
-app.use('/api/projects',       projectRoutes);
-app.use('/api/analytics',      analyticsRoutes);
-app.use('/api/notifications',  notificationRoutes);
-app.use('/api/admin',          adminRoutes);
-app.use('/api/projects/:id',   projectUsersRoutes);
-app.use('/tracking.js',        trackingRoutes);
+app.use('/api/auth',          authRoutes);
+app.use('/api/projects',      projectRoutes);
+app.use('/api/analytics',     analyticsRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/admin',         adminRoutes);
+app.use('/api/projects/:id',  projectUsersRoutes);
+app.use('/tracking.js',       trackingRoutes);
 
 app.get('/health', (req, res) => {
   res.status(200).json({ success: true, message: '🚀 DeployWatch API is running!' });
