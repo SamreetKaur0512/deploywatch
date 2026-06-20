@@ -163,7 +163,7 @@ const Analytics = () => {
                 <table className="analytics-table">
                   <thead>
                     <tr>
-                      <th>Project</th><th>Visitor</th><th>Unique</th><th>Country</th><th>City</th>
+                      <th>Project</th><th>Visitor Name & Email</th><th>Status</th><th>Country</th><th>City</th>
                       <th>Device</th><th>Source</th><th>Recruiter</th><th>Time</th>
                     </tr>
                   </thead>
@@ -172,17 +172,17 @@ const Analytics = () => {
                       <tr key={v._id}>
                         <td style={{ fontWeight: 500 }}>{v.project?.name || '—'}</td>
                         <td>
-                          {v.isUniqueVisitor
-                            ? <span className="badge badge-green" style={{ fontSize: '0.65rem' }}>New</span>
-                            : <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}>Repeat</span>}
-                        </td>
-                        <td>
                           {v.visitorName
                             ? <div>
                                 <div style={{ fontWeight: 500, fontSize: '0.82rem' }}>{v.visitorName}</div>
                                 {v.visitorEmail && <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{v.visitorEmail}</div>}
                               </div>
                             : <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Anonymous</span>}
+                        </td>
+                        <td>
+                          {v.isUniqueVisitor
+                            ? <span className="badge badge-green" style={{ fontSize: '0.65rem' }}>New</span>
+                            : <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}>Repeat</span>}
                         </td>
                         <td>{v.country}</td>
                         <td style={{ color: 'var(--text-muted)' }}>{v.city}</td>
