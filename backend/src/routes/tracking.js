@@ -130,28 +130,48 @@ const trackingScript = `
       } catch (e) {}
     }
 
-try {
-  var cookies = parseCookies();
-  var cookieKeys = ['dw_token','token','authToken','accessToken','jwt','auth_token','access_token','userToken','session','sessionid','sid'];
-  for (var c = 0; c < cookieKeys.length; c++) {
-    var cookieValue = cookies[cookieKeys[c]];
-    if (!cookieValue) continue;
-    if (cookieValue.indexOf('Bearer ') === 0) cookieValue = cookieValue.slice(7);
-    var decodedCookie = decodeJWT(cookieValue);
-    if (decodedCookie) {
-      var info = extractUserInfo(decodedCookie);
-      if (info) {
-        name = name || info.name;
-        email = email || info.email;
-        userId = userId || info.userId;
-        if (info.sub && info.sub.indexOf('@') !== -1) email = email || info.sub;
-        if (name && email) return { name: name, email: email, userId: userId };
-        if (userId) return { name: name, email: email, userId: userId };
+    try {
+      var cookies = parseCookies();
+      var cookieKeys = ['dw_token','token','authToken','accessToken','jwt','auth_token','access_token','userToken','session','sessionid','sid'];
+      for (var c = 0; c < cookieKeys.length; c++) {
+        var cookieValue = cookies[cookieKeys[c]];
+        if (!cookieValue) continue;
+        if (cookieValue.indexOf('Bearer ') === 0) cookieValue = cookieValue.slice(7);
+        var decodedCookie = decodeJWT(cookieValue);
+        if (decodedCookie) {
+          var info = extractUserInfo(decodedCookie);
+          if (info) {
+            name = name || info.name;
+            email = email || info.email;
+            userId = userId || info.userId;
+            if (info.sub && info.sub.indexOf('@') !== -1) email = email || info.sub;
+            if (name && email) return { name: name, email: email, userId: userId };
+            if (userId) return { name: name, email: email, userId: userId };
+          }
+        }
       }
-    }
-  }
-} catch (e) {}
+    } catch (e) {}
 
+    var globals = ['__NEXT_DATA__','__INITIAL_STATE__','__NUXT__','currentUser','user','authUser','loggedInUser','__user','APP_STATE','window.__APP_STATE__'];
+    for (var g = 0; g < globals.length; g++) {
+      try {
+        var u = window[globals[g]];
+        var info = extractUserInfo(u);
+        if (info) {
+          name = name || info.name;
+          email = email || info.email;
+          userId = userId || info.userId;
+          if (name || email || userId) return { name: name, email: email, userId: userId };
+        }
+      } catch (e) {}
+    }
+
+    return { name: name, email: email, userId: userId };
+  }
+
+  function sendView(extraData) {
+    var trackingId = getTrackingId();
+    if (!trackingId) return;
     var backendUrl = getBackendUrl();
     if (!backendUrl) return;
 
