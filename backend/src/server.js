@@ -2,7 +2,6 @@ require('dotenv').config();
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
-const cors = require('cors');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 
@@ -19,10 +18,8 @@ const projectUsersRoutes = require('./routes/projectUsers');
 
 connectDB();
 
-
-const app    = express();
-app.set('trust proxy', 1); // ← YE ADD KARO
-
+const app = express();
+app.set('trust proxy', 1);
 const server = http.createServer(app);
 
 const io = new Server(server, {
@@ -36,18 +33,23 @@ const io = new Server(server, {
 app.set('io', io);
 
 io.on('connection', (socket) => {
-  console.log(`🔌 Socket connected: ${socket.id}`);
   socket.on('join', (userId) => { socket.join(userId); });
-  socket.on('disconnect', () => { console.log(`🔌 Socket disconnected: ${socket.id}`); });
+  socket.on('disconnect', () => {});
 });
 
 initCronJobs(io);
 
-const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 100 });
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  skip: (req) => req.path === '/api/analytics/track',
+});
 
+// ── Single CORS middleware — handles everything ──
 app.use((req, res, next) => {
   const origin = req.headers.origin;
 
+  // Tracking — allow all, no credentials
   if (req.path === '/api/analytics/track' || req.path.startsWith('/tracking')) {
     res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -56,11 +58,8 @@ app.use((req, res, next) => {
     return next();
   }
 
-  if (origin) {
-    res.header('Access-Control-Allow-Origin', origin);
-  } else {
-    res.header('Access-Control-Allow-Origin', '*');
-  }
+  // Everything else — reflect origin with credentials
+  res.header('Access-Control-Allow-Origin', origin || '*');
   res.header('Access-Control-Allow-Credentials', 'true');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -73,13 +72,13 @@ app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
 app.use('/api/', limiter);
 
-app.use('/api/auth',          authRoutes);
-app.use('/api/projects',      projectRoutes);
-app.use('/api/analytics',     analyticsRoutes);
+app.use('/api/auth',           authRoutes);
+app.use('/api/projects',       projectRoutes);
+app.use('/api/analytics',      analyticsRoutes);
 app.use('/api/notifications',  notificationRoutes);
-app.use('/api/admin',         adminRoutes);
-app.use('/api/projects/:id',  projectUsersRoutes);
-app.use('/tracking.js',       trackingRoutes);
+app.use('/api/admin',          adminRoutes);
+app.use('/api/projects/:id',   projectUsersRoutes);
+app.use('/tracking.js',        trackingRoutes);
 
 app.get('/health', (req, res) => {
   res.status(200).json({ success: true, message: '🚀 DeployWatch API is running!' });
