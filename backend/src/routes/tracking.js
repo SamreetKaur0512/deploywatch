@@ -71,7 +71,7 @@ const trackingScript = `
     return null;
   }
 
-  function detectUser() {
+  function detectUserSync() {
     var name = '', email = '', userId = '';
     var userKeys = ['dw_user','user','currentUser','userData','loggedInUser','authUser','profile','me','account','userInfo','current_user','user_info','authUserInfo','sessionUser','userState','appUser'];
     var tokenKeys = ['dw_token','token','authToken','accessToken','jwt','auth_token','access_token','userToken'];
@@ -169,13 +169,73 @@ const trackingScript = `
     return { name: name, email: email, userId: userId };
   }
 
-  function sendView(extraData) {
+  function queryMetaContent(name) {
+    var meta = document.querySelector('meta[name="' + name + '"]') || document.querySelector('meta[property="' + name + '"]');
+    return meta ? meta.content || '' : '';
+  }
+
+  function extractUserFromDOM() {
+    var name = queryMetaContent('user-name') || queryMetaContent('og:title') || queryMetaContent('profile:name') || '';
+    var email = queryMetaContent('user-email') || queryMetaContent('og:email') || queryMetaContent('profile:email') || '';
+    if (!email) {
+      var mailto = document.querySelector('a[href^="mailto:"]');
+      if (mailto) {
+        email = mailto.getAttribute('href').replace(/^mailto:/i, '').split('?')[0] || '';
+      }
+    }
+    if (!name) {
+      var userEl = document.querySelector('[data-user-name], [data-current-user], .user-name, .username, .profile-name');
+      if (userEl) name = userEl.textContent.trim();
+    }
+    if (name || email) return { name: name || '', email: email || '', userId: '' };
+    return null;
+  }
+
+  function fetchJson(url) {
+    try {
+      return fetch(url, {
+        method: 'GET',
+        credentials: 'include',
+        headers: { 'Accept': 'application/json' }
+      }).then(function(res) {
+        if (!res.ok) return null;
+        return res.json().catch(function() { return null; });
+      }).catch(function() { return null; });
+    } catch (e) {
+      return Promise.resolve(null);
+    }
+  }
+
+  async function probeProfileEndpoints() {
+    var endpoints = ['/api/auth/me', '/auth/me', '/api/me', '/me', '/api/user', '/user', '/profile', '/api/profile'];
+    for (var i = 0; i < endpoints.length; i++) {
+      try {
+        var result = await fetchJson(endpoints[i]);
+        if (!result) continue;
+        var info = extractUserInfo(result);
+        if (info && (info.name || info.email || info.userId)) return info;
+      } catch (e) {}
+    }
+    return null;
+  }
+
+  async function detectUser() {
+    var auto = detectUserSync();
+    if (auto.name || auto.email || auto.userId) return auto;
+    var dom = extractUserFromDOM();
+    if (dom && (dom.name || dom.email)) return dom;
+    var apiInfo = await probeProfileEndpoints();
+    if (apiInfo && (apiInfo.name || apiInfo.email || apiInfo.userId)) return apiInfo;
+    return auto;
+  }
+
+  async function sendView(extraData) {
     var trackingId = getTrackingId();
     if (!trackingId) return;
     var backendUrl = getBackendUrl();
     if (!backendUrl) return;
 
-    var autoUser = detectUser();
+    var autoUser = await detectUser();
     var params   = new URLSearchParams(window.location.search);
 
     // Build sensible fallbacks: prefer name, then userId, then email-derived name.
