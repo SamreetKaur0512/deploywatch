@@ -23,8 +23,8 @@ const sendViewNotificationEmail = async ({ toEmail, ownerName, projectName, live
       ? `<span style="background:#bc8cff22;color:#bc8cff;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;">👔 RECRUITER VISIT</span>`
       : `<span style="background:#00d4ff18;color:#00d4ff;padding:3px 10px;border-radius:20px;font-size:12px;">👁️ New View</span>`;
 
-    const visitorInfo = visitorName
-      ? `<tr><td style="color:#8b949e;padding:6px 0;font-size:13px;">Visitor</td><td style="color:#e6edf3;font-weight:600;font-size:13px;">${visitorName}${visitorEmail ? ` (${visitorEmail})` : ''}</td></tr>`
+    const visitorInfo = visitorName || visitorEmail
+      ? `<tr><td style="color:#8b949e;padding:6px 0;font-size:13px;">Visitor</td><td style="color:#e6edf3;font-weight:600;font-size:13px;">${visitorName ? visitorName : visitorEmail}${visitorEmail ? ` (${visitorEmail})` : ''}</td></tr>`
       : `<tr><td style="color:#8b949e;padding:6px 0;font-size:13px;">Visitor</td><td style="color:#8b949e;font-size:13px;">Anonymous</td></tr>`;
 
     const html = `

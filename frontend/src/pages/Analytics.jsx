@@ -172,10 +172,12 @@ const Analytics = () => {
                       <tr key={v._id}>
                         <td style={{ fontWeight: 500 }}>{v.project?.name || '—'}</td>
                         <td>
-                          {v.visitorName
+                          {(v.visitorName || v.visitorEmail)
                             ? <div>
-                                <div style={{ fontWeight: 500, fontSize: '0.82rem' }}>{v.visitorName}</div>
-                                {v.visitorEmail && <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{v.visitorEmail}</div>}
+                                {v.visitorName
+                                  ? <div style={{ fontWeight: 500, fontSize: '0.82rem' }}>{v.visitorName}</div>
+                                  : <div style={{ fontWeight: 500, fontSize: '0.82rem' }}>{v.visitorEmail}</div>}
+                                {v.visitorName && v.visitorEmail && <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{v.visitorEmail}</div>}
                               </div>
                             : <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Anonymous</span>}
                         </td>

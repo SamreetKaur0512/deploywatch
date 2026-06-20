@@ -153,7 +153,7 @@ fetch('${BACKEND_URL}/api/analytics/track', {
             <span className="htu-num">Step 3 (Optional) — Track Logged-in Users</span>
             <h4 className="htu-title">See visitor name & email in Analytics</h4>
             <p className="htu-desc">
-              If your project has login, call this after a user logs in — their name and email will appear in your Analytics table.
+              If your project has login, call this after a user logs in — their name and email will appear in your Analytics table and notifications. If login happens after the page loads, this explicit call is required.
             </p>
             <div className="htu-code-wrap">
               <pre className="htu-code mono">{loginSnippet}</pre>

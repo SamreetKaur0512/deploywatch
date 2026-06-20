@@ -37,11 +37,45 @@ const trackingScript = `
     } catch(e) { return null; }
   }
 
+  function tryParseJSON(value) {
+    if (!value || typeof value !== 'string') return null;
+    try { return JSON.parse(value); } catch (e) { return null; }
+  }
+
+  function parseCookies() {
+    var cookies = {};
+    var cookieString = document.cookie || '';
+    cookieString.split(/;\s*/).forEach(function(pair) {
+      var idx = pair.indexOf('=');
+      if (idx < 0) return;
+      var key = pair.slice(0, idx);
+      var value = pair.slice(idx + 1);
+      try { value = decodeURIComponent(value); } catch (e) {}
+      cookies[key] = value;
+    });
+    return cookies;
+  }
+
+  function extractUserInfo(obj) {
+    if (!obj || typeof obj !== 'object') return null;
+    var name = obj.name || obj.username || obj.displayName || obj.fullName || obj.userName || '';
+    if (!name && obj.firstName && obj.lastName) name = obj.firstName + ' ' + obj.lastName;
+    var email = obj.email || obj.emailAddress || obj.mail || (obj.contact && obj.contact.email) || (obj.user && obj.user.email) || '';
+    var userId = obj.id || obj._id || obj.userId || obj.sub || (obj.user && (obj.user.id || obj.user._id || obj.user.userId)) || '';
+    if (typeof obj === 'string' && obj.indexOf('@') !== -1) email = email || obj;
+    if (obj.profile && typeof obj.profile === 'object') {
+      email = email || obj.profile.email || '';
+      name = name || obj.profile.name || obj.profile.username || '';
+    }
+    if (name || email || userId) return { name: name || '', email: email || '', userId: userId || '' };
+    return null;
+  }
+
   function detectUser() {
     var name = '', email = '', userId = '';
-    var userKeys  = ['dw_user','user','currentUser','userData','loggedInUser','authUser','profile','me','account'];
+    var userKeys = ['dw_user','user','currentUser','userData','loggedInUser','authUser','profile','me','account','userInfo','current_user','user_info','authUserInfo','sessionUser','userState','appUser'];
     var tokenKeys = ['dw_token','token','authToken','accessToken','jwt','auth_token','access_token','userToken'];
-    var storages  = [localStorage, sessionStorage];
+    var storages = [localStorage, sessionStorage];
 
     for (var s = 0; s < storages.length; s++) {
       var storage = storages[s];
@@ -49,52 +83,75 @@ const trackingScript = `
         for (var i = 0; i < userKeys.length; i++) {
           var raw = storage.getItem(userKeys[i]);
           if (!raw) continue;
-          try {
-            var obj = JSON.parse(raw);
-            if (typeof obj === 'object' && obj !== null) {
-              name   = name   || obj.name || obj.username || obj.displayName || obj.fullName || '';
-              email  = email  || obj.email || obj.emailAddress || obj.mail || '';
-              userId = userId || obj.id || obj._id || obj.userId || '';
+          var obj = tryParseJSON(raw) || raw;
+          var info = extractUserInfo(obj);
+          if (info) {
+            name = name || info.name;
+            email = email || info.email;
+            userId = userId || info.userId;
+            if (name && email) return { name: name, email: email, userId: userId };
+          }
+        }
+
+        for (var k = 0; k < storage.length; k++) {
+          var storageKey = storage.key(k);
+          if (!storageKey) continue;
+          if (/user|auth|profile|account|session/i.test(storageKey) && userKeys.indexOf(storageKey) === -1) {
+            var rawValue = storage.getItem(storageKey);
+            if (!rawValue) continue;
+            var obj = tryParseJSON(rawValue) || rawValue;
+            var info = extractUserInfo(obj);
+            if (info) {
+              name = name || info.name;
+              email = email || info.email;
+              userId = userId || info.userId;
               if (name && email) return { name: name, email: email, userId: userId };
             }
-          } catch(e) {}
+          }
         }
+
         for (var j = 0; j < tokenKeys.length; j++) {
           var token = storage.getItem(tokenKeys[j]);
           if (!token) continue;
           if (token.indexOf('Bearer ') === 0) token = token.slice(7);
           var decoded = decodeJWT(token);
           if (decoded) {
-            name   = name   || decoded.name  || decoded.username || '';
-            email  = email  || decoded.email || '';
-            userId = userId || decoded.id || decoded._id || decoded.userId || decoded.sub || '';
-            if (decoded.sub && decoded.sub.indexOf('@') !== -1) email = email || decoded.sub;
-            if (name && email) return { name: name, email: email, userId: userId };
-            if (userId)        return { name: name, email: email, userId: userId };
+            var info = extractUserInfo(decoded);
+            if (info) {
+              name = name || info.name;
+              email = email || info.email;
+              userId = userId || info.userId;
+              if (info.sub && info.sub.indexOf('@') !== -1) email = email || info.sub;
+              if (name && email) return { name: name, email: email, userId: userId };
+              if (userId) return { name: name, email: email, userId: userId };
+            }
           }
         }
-      } catch(e) {}
+      } catch (e) {}
     }
 
-    var globals = ['currentUser','user','authUser','loggedInUser','__user'];
-    for (var g = 0; g < globals.length; g++) {
-      try {
-        var u = window[globals[g]];
-        if (u && typeof u === 'object') {
-          name   = name   || u.name  || u.username || u.displayName || '';
-          email  = email  || u.email || u.emailAddress || '';
-          userId = userId || u.id    || u._id || u.userId || '';
-          if (name || email || userId) return { name: name, email: email, userId: userId };
-        }
-      } catch(e) {}
+try {
+  var cookies = parseCookies();
+  var cookieKeys = ['dw_token','token','authToken','accessToken','jwt','auth_token','access_token','userToken','session','sessionid','sid'];
+  for (var c = 0; c < cookieKeys.length; c++) {
+    var cookieValue = cookies[cookieKeys[c]];
+    if (!cookieValue) continue;
+    if (cookieValue.indexOf('Bearer ') === 0) cookieValue = cookieValue.slice(7);
+    var decodedCookie = decodeJWT(cookieValue);
+    if (decodedCookie) {
+      var info = extractUserInfo(decodedCookie);
+      if (info) {
+        name = name || info.name;
+        email = email || info.email;
+        userId = userId || info.userId;
+        if (info.sub && info.sub.indexOf('@') !== -1) email = email || info.sub;
+        if (name && email) return { name: name, email: email, userId: userId };
+        if (userId) return { name: name, email: email, userId: userId };
+      }
     }
-
-    return { name: name, email: email, userId: userId };
   }
+} catch (e) {}
 
-  function sendView(extraData) {
-    var trackingId = getTrackingId();
-    if (!trackingId) return;
     var backendUrl = getBackendUrl();
     if (!backendUrl) return;
 

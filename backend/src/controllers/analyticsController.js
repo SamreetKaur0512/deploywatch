@@ -106,12 +106,16 @@ const trackView = async (req, res) => {
           ? `👔 Recruiter viewing ${project.name}!`
           : finalName
             ? `👁️ ${finalName} viewed ${project.name}`
-            : `👁️ Someone viewed ${project.name}`,
+            : finalEmail
+              ? `👁️ ${finalEmail} viewed ${project.name}`
+              : `👁️ Someone viewed ${project.name}`,
         message: isRecruiter
           ? `A recruiter from ${country} (via ${utmSource || referrer || 'direct'}) is viewing your project!`
           : finalName
             ? `${finalName} (${finalEmail || 'no email'}) viewed from ${country} on ${device}`
-            : `New view from ${city !== 'Unknown' ? city + ', ' : ''}${country} on ${device}`,
+            : finalEmail
+              ? `${finalEmail} viewed from ${country} on ${device}`
+              : `New view from ${city !== 'Unknown' ? city + ', ' : ''}${country} on ${device}`,
         project: project._id,
         meta: { country, city, device, browser, isRecruiter, utmSource, referrer, visitorName: finalName, visitorEmail: finalEmail },
       };
