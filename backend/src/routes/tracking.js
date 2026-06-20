@@ -110,18 +110,12 @@ const trackingScript = `
     var url     = backendUrl + '/api/analytics/track';
     var payload = JSON.stringify(data);
 
-    if (navigator.sendBeacon) {
-      try {
-        var blob = new Blob([payload], { type: 'application/json' });
-        if (navigator.sendBeacon(url, blob)) return;
-      } catch(e) {}
-    }
-
     fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: payload,
-      keepalive: true
+      mode: 'cors',
+      credentials: 'omit'
     }).catch(function() {});
   }
 
