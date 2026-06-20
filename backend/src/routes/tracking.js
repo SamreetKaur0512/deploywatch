@@ -192,6 +192,9 @@ const trackingScript = `
       visitorId:    autoUser.userId || '',
     }, extraData || {});
 
+    try {
+      console.log('DeployWatch: sendView', data);
+    } catch (e) {}
     fetch(backendUrl + '/api/analytics/track', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
