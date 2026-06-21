@@ -176,6 +176,15 @@ fetch('${BACKEND_URL}/api/analytics/track', {
 setUser(user);
 window.deployWatchTrackView({ visitorName: user.name, visitorEmail: user.email });`}
               </pre>
+              <div style={{ marginTop: 8, fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                If your project uses different names, map them here:
+              </div>
+              <pre className="htu-code mono" style={{ marginTop: 6 }}>
+{`window.deployWatchTrackView({
+  visitorName: user.username || user.displayName || user.fullName,
+  visitorEmail: user.emailid || user.mail || user.contactEmail
+});`}
+              </pre>
             </div>
           </div>
 

@@ -153,8 +153,10 @@ const Projects = () => {
                         : <Copy size={12} />}
                     </button>
                   </div>
-                    <div style={{ marginTop: '0.4rem', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-                      To capture logged-in users' name & email, call <strong>window.deployWatchTrackView({'{ visitorName, visitorEmail }'})</strong> immediately after your app logs a user in. See How to use → Step 3 for examples.
+                    <div style={{ marginTop: '0.4rem', fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                      To capture logged-in users' name & email, call <strong>window.deployWatchTrackView({'{ visitorName, visitorEmail }'})</strong> immediately after your app logs in a user.
+                      If your app uses different field names (for example <code>username</code> or <code>emailId</code>), map those to <code>visitorName</code> and <code>visitorEmail</code>.
+                      See How to use → Step 3 for examples for React, Vue, Angular, PHP, Python and more.
                     </div>
                 </div>
 

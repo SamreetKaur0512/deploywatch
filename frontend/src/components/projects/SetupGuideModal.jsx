@@ -216,9 +216,22 @@ router.afterEach(() => {
                 <code style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--accent)' }}>
                   window.deployWatchTrackView({'{'} visitorName: 'John', visitorEmail: 'john@email.com' {'}'})
                 </code>
+                <div style={{ marginTop: 10, fontSize: '0.80rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                  If your app uses different field names, map them like this:
+                  <pre className="sgm-code mono" style={{ marginTop: 6 }}>
+{`const user = {
+  username: 'john_doe',
+  emailid: 'john@example.com'
+};
+
+window.deployWatchTrackView({
+  visitorName: user.username,
+  visitorEmail: user.emailid
+});`}
+                  </pre>
+                </div>
               </div>
             </div>
-          )}
 
           {/* ── Step 4: Manage Users ── */}
           {activeStep === 3 && (
