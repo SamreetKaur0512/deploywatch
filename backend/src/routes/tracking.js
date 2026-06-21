@@ -57,18 +57,23 @@ const trackingScript = `
   }
 
   function extractUserInfo(obj) {
-    if (!obj || typeof obj !== 'object') return null;
-    var name = obj.name || obj.username || obj.displayName || obj.fullName || obj.userName || '';
-    if (!name && obj.firstName && obj.lastName) name = obj.firstName + ' ' + obj.lastName;
-    var email = obj.email || obj.emailAddress || obj.mail || (obj.contact && obj.contact.email) || (obj.user && obj.user.email) || '';
-    var userId = obj.id || obj._id || obj.userId || obj.sub || (obj.user && (obj.user.id || obj.user._id || obj.user.userId)) || '';
+    if (!obj || (typeof obj !== 'object' && typeof obj !== 'string')) return null;
+    var name = (typeof obj === 'object' && (obj.name || obj.username || obj.displayName || obj.fullName || obj.userName)) || '';
+    if (!name && typeof obj === 'object' && obj.firstName && obj.lastName) name = obj.firstName + ' ' + obj.lastName;
+    var email = (typeof obj === 'object' && (obj.email || obj.emailAddress || obj.mail || (obj.contact && obj.contact.email) || (obj.user && obj.user.email))) || '';
+    var userId = (typeof obj === 'object' && (obj.id || obj._id || obj.userId || obj.sub || (obj.user && (obj.user.id || obj.user._id || obj.user.userId)))) || '';
     if (typeof obj === 'string' && obj.indexOf('@') !== -1) email = email || obj;
-    if (obj.profile && typeof obj.profile === 'object') {
+    if (typeof obj === 'object' && obj.profile && typeof obj.profile === 'object') {
       email = email || obj.profile.email || '';
       name = name || obj.profile.name || obj.profile.username || '';
     }
     if (name || email || userId) return { name: name || '', email: email || '', userId: userId || '' };
     return null;
+  }
+
+  function getExplicitDeployWatchUser() {
+    var candidate = window.deployWatchUser || window.DEPLOY_WATCH_USER || window.__DEPLOY_WATCH_USER__ || window._deployWatchUser;
+    return extractUserInfo(candidate);
   }
 
   function detectUserSync() {
@@ -166,6 +171,14 @@ const trackingScript = `
       } catch (e) {}
     }
 
+    var deployWatchUser = getExplicitDeployWatchUser();
+    if (deployWatchUser) {
+      name = name || deployWatchUser.name;
+      email = email || deployWatchUser.email;
+      userId = userId || deployWatchUser.userId;
+      if (name || email || userId) return { name: name, email: email, userId: userId };
+    }
+
     return { name: name, email: email, userId: userId };
   }
 
@@ -238,9 +251,10 @@ const trackingScript = `
     var autoUser = await detectUser();
     var params   = new URLSearchParams(window.location.search);
 
-    // Build sensible fallbacks: prefer name, then userId, then email-derived name.
-    var vName = autoUser.name || autoUser.userId || (autoUser.email ? autoUser.email.split('@')[0] : '');
-    var vEmail = autoUser.email || (autoUser.userId && autoUser.userId.indexOf('@') !== -1 ? autoUser.userId : '');
+    // Build sensible fallbacks: prefer name, then email; only use userId as name when there is no better identity.
+    var vName = autoUser.name || (autoUser.email ? autoUser.email.split('@')[0] : '');
+    var vEmail = autoUser.email || '';
+    var vId = autoUser.userId || '';
 
     var data = Object.assign({
       trackingId:   trackingId,
@@ -249,8 +263,13 @@ const trackingScript = `
       utmMedium:    params.get('utm_medium') || '',
       visitorName:  vName || '',
       visitorEmail: vEmail || '',
-      visitorId:    autoUser.userId || '',
+      visitorId:    vId,
     }, extraData || {});
+
+    // If only an id is available and no name/email, keep visitorName empty so the dashboard doesn't show id as a name.
+    if (!data.visitorName && data.visitorId && !data.visitorEmail) {
+      data.visitorName = '';
+    }
 
     try {
       console.log('DeployWatch: sendView', data);
@@ -270,7 +289,33 @@ const trackingScript = `
     } else { fn(); }
   }
 
-  ready(function() { sendView(); });
+  function flushQueuedSendViews() {
+    if (Array.isArray(window._deployWatchTrackViewQueue) && window._deployWatchTrackViewQueue.length) {
+      window._deployWatchTrackViewQueue.forEach(function(extraData) {
+        sendView(extraData);
+      });
+      window._deployWatchTrackViewQueue = [];
+    }
+  }
+
+  function watchExplicitUserInfo() {
+    var lastSignature = '';
+    var check = function() {
+      var explicit = getExplicitDeployWatchUser();
+      if (explicit && (explicit.name || explicit.email || explicit.userId)) {
+        var signature = [explicit.name || '', explicit.email || '', explicit.userId || ''].join('|');
+        if (signature && signature !== lastSignature) {
+          lastSignature = signature;
+          sendView({ visitorName: explicit.name || '', visitorEmail: explicit.email || '', visitorId: explicit.userId || '' });
+        }
+      }
+    };
+    check();
+    var watcher = setInterval(check, 900);
+    setTimeout(function() { clearInterval(watcher); }, 9000);
+  }
+
+  ready(function() { sendView(); flushQueuedSendViews(); watchExplicitUserInfo(); });
 
   var _pushState = history.pushState;
   var _replaceState = history.replaceState;
