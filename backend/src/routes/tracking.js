@@ -251,11 +251,24 @@ const trackingScript = `
     var autoUser = await detectUser();
     var params   = new URLSearchParams(window.location.search);
 
-    // Build sensible fallbacks: prefer name, then email; only use userId as name when there is no better identity.
-    var vName = autoUser.name || (autoUser.email ? autoUser.email.split('@')[0] : '');
-    var vEmail = autoUser.email || '';
-    var vId = autoUser.userId || '';
+    var explicitRaw = null;
+    if (extraData && typeof extraData === 'object') {
+      explicitRaw = extraData.user || extraData.currentUser || extraData.rawUser || extraData.account || extraData.profile || null;
+      if (!explicitRaw && (extraData.name || extraData.email || extraData.userId || extraData.id || extraData._id)) {
+        explicitRaw = extraData;
+      }
+    }
+    var explicitInfo = extractUserInfo(explicitRaw || window.deployWatchUser);
+    if (explicitInfo) {
+      autoUser.name = autoUser.name || explicitInfo.name;
+      autoUser.email = autoUser.email || explicitInfo.email;
+      autoUser.userId = autoUser.userId || explicitInfo.userId;
+    }
 
+    // Build sensible fallbacks: prefer explicit/auto name, then explicit/auto email; keep userId as id only.
+    var vName = (extraData && extraData.visitorName) || autoUser.name || (autoUser.email ? autoUser.email.split('@')[0] : '');
+    var vEmail = (extraData && extraData.visitorEmail) || autoUser.email || '';
+    var vId = (extraData && extraData.visitorId) || autoUser.userId || '';
     var data = Object.assign({
       trackingId:   trackingId,
       referrer:     document.referrer || '',
