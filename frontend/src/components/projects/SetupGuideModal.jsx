@@ -232,6 +232,7 @@ window.deployWatchTrackView({
                 </div>
               </div>
             </div>
+          )}
 
           {/* ── Step 4: Manage Users ── */}
           {activeStep === 3 && (
