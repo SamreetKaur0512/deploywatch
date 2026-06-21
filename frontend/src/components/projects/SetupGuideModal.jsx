@@ -6,6 +6,17 @@ const BACKEND_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
 
 const STEPS = ['Track Views', 'Ping Status', 'Track Logins', 'Manage Users'];
 
+// 🎯 ਸੈਂਪਲ ਕੋਡ ਨੂੰ ਇੱਥੇ ਬਾਹਰ ਰੱਖਣ ਨਾਲ JSX ਵਿੱਚ ਕਦੇ ਵੀ ਬ੍ਰੈਕਟਸ ਦਾ ਐਰਰ ਨਹੀਂ ਆਵੇਗਾ
+const MANUAL_CODE_SAMPLE = `const user = {
+  username: 'john_doe',
+  emailid: 'john@example.com'
+};
+
+window.deployWatchTrackView({
+  visitorName: user.username,
+  visitorEmail: user.emailid
+});`;
+
 const SetupGuideModal = ({ project, onClose }) => {
   const [activeStep, setActiveStep] = useState(0);
   const [copied, setCopied] = useState(null);
@@ -28,27 +39,6 @@ const SetupGuideModal = ({ project, onClose }) => {
   data-tracking-id="${tid}"
   async>
 </script>`;
-
-  const loginScript = `// Call this after login/register success in your project:
-window.deployWatchTrackView({
-  visitorName:  user.name,   // logged-in user's name
-  visitorEmail: user.email   // logged-in user's email
-});`;
-
-  const spaScript = `// For React/Vue/Angular (SPA) — call after route change:
-// React Router example:
-useEffect(() => {
-  window.deployWatchTrackView?.();
-}, [location.pathname]);
-
-// Vue Router example:
-router.afterEach(() => {
-  window.deployWatchTrackView?.();
-});`;
-
-  const recruiterScript = `<!-- Add ?ref=linkedin to your resume project links -->
-<!-- Example: ${liveUrl}?ref=linkedin -->
-<!-- You'll get a special "Recruiter Visit" notification! -->`;
 
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
@@ -219,15 +209,7 @@ router.afterEach(() => {
                 <div style={{ marginTop: 10, fontSize: '0.80rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
                   If your app uses different field names, map them like this:
                   <pre className="sgm-code mono" style={{ marginTop: 6 }}>
-{`const user = {
-  username: 'john_doe',
-  emailid: 'john@example.com'
-};
-
-window.deployWatchTrackView({
-  visitorName: user.username,
-  visitorEmail: user.emailid
-});`}
+                    {MANUAL_CODE_SAMPLE}
                   </pre>
                 </div>
               </div>
