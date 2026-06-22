@@ -8,12 +8,11 @@ const STEPS = ['Track Views', 'Ping Status', 'Track Logins', 'Manage Users'];
 
 const buildLoginTrackingSamples = (trackingId) => ({
   react: `// 📂 TYPE A: Frontend Form Login (React / Vue / Angular)
-// 🔍 WHERE TO FIND VARIABLES: Inside your login API response object (e.g., res.data.user)
-
 const handleLoginSuccess = async (email, password) => {
   const res = await authAPI.login({ email, password });
   
   if (res.data.success) {
+    // 🔍 CUSTOMIZABLE VARIABLE: Change 'res.data.user' to match your API response structure
     const currentUser = res.data.user; 
 
     // 🚀 COPY & PASTE THIS TRACKING CODE HERE:
@@ -21,9 +20,15 @@ const handleLoginSuccess = async (email, password) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        trackingId: '${trackingId}',
-        utmSource: 'login',
+        trackingId: '${trackingId}', // 🔒 FIXED: Do not change
+        utmSource: 'login',          // 🔒 FIXED: Do not change
+        
+        // 🛠️ CUSTOMIZABLE FIELDS: 
+        // - Change 'currentUser' to your own object name if different
+        // - Change '.username' or '.name' to match your user properties
         visitorName: currentUser?.username || currentUser?.name || 'Anonymous User',
+        
+        // - Change '.email' to match your user email property
         visitorEmail: currentUser?.email || 'no-email@deploywatch.com'
       })
     }).catch(() => {});
@@ -33,10 +38,9 @@ const handleLoginSuccess = async (email, password) => {
 };`,
 
   googleReact: `// 📂 TYPE B: Frontend Google Login / OAuth (React / Vue / Angular)
-// 🔍 WHERE TO FIND VARIABLES: Decode Google's credential response JWT token to get profile data
-
 const handleGoogleSuccess = (credentialResponse) => {
   // Decode JWT token (Using jwt-decode library)
+  // 🔍 CUSTOMIZABLE VARIABLE: Change 'googleUser' to whatever your decoded object variable is named
   const googleUser = jwt_decode(credentialResponse.credential); 
 
   // 🚀 COPY & PASTE THIS TRACKING CODE HERE:
@@ -44,8 +48,12 @@ const handleGoogleSuccess = (credentialResponse) => {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      trackingId: '${trackingId}',
-      utmSource: 'google_login',
+      trackingId: '${trackingId}', // 🔒 FIXED: Do not change
+      utmSource: 'google_login',   // 🔒 FIXED: Do not change
+      
+      // 🛠️ CUSTOMIZABLE FIELDS:
+      // - Change 'googleUser' to match your decoded object variable (e.g., res, profile)
+      // - ⚠️ NOTE: '.name', '.given_name', and '.email' are standard Google OAuth keys. No need to change them.
       visitorName: googleUser?.name || googleUser?.given_name || 'Google User',
       visitorEmail: googleUser?.email || ''
     })
@@ -53,10 +61,10 @@ const handleGoogleSuccess = (credentialResponse) => {
 };`,
 
   node: `// 📂 TYPE A: Backend Controller Login (Node.js / Express)
-// 🔍 WHERE TO FIND VARIABLES: From the user object fetched from MongoDB/SQL database
-
 const loginUser = async (req, res) => {
   const { email, password } = req.body;
+  
+  // 🔍 CUSTOMIZABLE VARIABLE: Change 'User' and 'dbUser' to match your Mongoose/Sequelize model variables
   const dbUser = await User.findOne({ email });
 
   if (dbUser && (await dbUser.matchPassword(password))) {
@@ -66,9 +74,15 @@ const loginUser = async (req, res) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        trackingId: '${trackingId}',
-        utmSource: 'login',
+        trackingId: '${trackingId}', // 🔒 FIXED: Do not change
+        utmSource: 'login',          // 🔒 FIXED: Do not change
+        
+        // 🛠️ CUSTOMIZABLE FIELDS:
+        // - Change 'dbUser' to your own fetched user object variable (e.g., user, row)
+        // - Change '.name' or '.username' to match your Database Schema columns
         visitorName: dbUser.name || dbUser.username || 'Anonymous Backend User',
+        
+        // - Change '.email' to match your Database Schema email column
         visitorEmail: dbUser.email || ''
       })
     }).catch(() => {});
@@ -78,9 +92,8 @@ const loginUser = async (req, res) => {
 };`,
 
   googleNode: `// 📂 TYPE B: Backend Google Login / Passport Callback (Node.js / Express)
-// 🔍 WHERE TO FIND VARIABLES: Passport.js automatically passes user profile in req.user
-
 app.get('/auth/google/callback', passport.authenticate('google'), async (req, res) => {
+  // 🔍 CUSTOMIZABLE VARIABLE: Change 'googleProfile' to your own variable name (e.g., user, profile)
   const googleProfile = req.user; 
 
   // 🚀 COPY & PASTE THIS TRACKING CODE HERE (Before redirecting):
@@ -88,8 +101,12 @@ app.get('/auth/google/callback', passport.authenticate('google'), async (req, re
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      trackingId: '${trackingId}',
-      utmSource: 'google_login',
+      trackingId: '${trackingId}', // 🔒 FIXED: Do not change
+      utmSource: 'google_login',   // 🔒 FIXED: Do not change
+      
+      // 🛠️ CUSTOMIZABLE FIELDS:
+      // - Change 'googleProfile' to match your passport user variable name (e.g., req.user)
+      // - ⚠️ NOTE: Passport Google Strategy standard profile keys are '.displayName' and '.emails[0].value'. Only modify if using a custom strategy profile mapper.
       visitorName: googleProfile.displayName || googleProfile.name?.givenName || 'Google User',
       visitorEmail: googleProfile.emails?.[0]?.value || ''
     })
@@ -101,20 +118,27 @@ app.get('/auth/google/callback', passport.authenticate('google'), async (req, re
   php: `// 📂 TYPE A: Backend Form Login (PHP / Laravel)
 public function login(Request $request) {
     if (Auth::attempt($request->only('email', 'password'))) {
+        // 🔍 CUSTOMIZABLE VARIABLE: Change '$laravelUser' to your preferred variable name (e.g., $user)
         $laravelUser = Auth::user(); 
 
         // 🚀 COPY & PASTE THIS TRACKING CODE HERE:
         $payload = [
-            'trackingId'   => '${trackingId}',
-            'utmSource'    => 'login',
+            'trackingId'   => '${trackingId}', // 🔒 FIXED: Do not change
+            'utmSource'    => 'login',          // 🔒 FIXED: Do not change
+            
+            // 🛠️ CUSTOMIZABLE FIELDS:
+            // - Change '$laravelUser' to match your user variable
+            // - Change '->name' or '->username' to match your Eloquent Model attributes / SQL table columns
             'visitorName'  => $laravelUser->name ?? $laravelUser->username ?? 'Anonymous PHP User',
+            
+            // - Change '->email' to match your user model email column
             'visitorEmail' => $laravelUser->email ?? ''
         ];
 
         try {
             $ch = curl_init('https://deploywatch.onrender.com/api/analytics/track');
             curl_setopt_array($ch, [
-                CURLOPT_POST => true,
+                CURLPOST => true,
                 CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
                 CURLOPT_POSTFIELDS => json_encode($payload),
                 CURLOPT_RETURNTRANSFER => true,
@@ -130,12 +154,17 @@ public function login(Request $request) {
 
   googlePhp: `// 📂 TYPE B: Backend Google Login / Socialite OAuth (PHP / Laravel)
 public function handleGoogleCallback() {
+    // 🔍 CUSTOMIZABLE VARIABLE: Change '$googleUser' to your preferred variable (e.g., $user, $rawUser)
     $googleUser = Socialite::driver('google')->user();
 
     // 🚀 COPY & PASTE THIS TRACKING CODE HERE:
     $payload = [
-        'trackingId'   => '${trackingId}',
-        'utmSource'    => 'google_login',
+        'trackingId'   => '${trackingId}', // 🔒 FIXED: Do not change
+        'utmSource'    => 'google_login',   // 🔒 FIXED: Do not change
+        
+        // 🛠️ CUSTOMIZABLE FIELDS:
+        // - Change '$googleUser' to match your Socialite user object variable
+        // - ⚠️ NOTE: '->getName()' and '->getEmail()' are standard Laravel Socialite methods for Google. No need to change them.
         'visitorName'  => $googleUser->getName() ?? 'Google User',
         'visitorEmail' => $googleUser->getEmail() ?? ''
     ];
@@ -161,6 +190,7 @@ from django.contrib.auth import authenticate, login
 import requests
 
 def user_login(request):
+    # 🔍 CUSTOMIZABLE VARIABLE: Change 'user' if your authentication returns a different variable name
     user = authenticate(username=username, password=password)
     if user is not None:
         login(request, user)
@@ -170,9 +200,15 @@ def user_login(request):
             requests.post(
                 'https://deploywatch.onrender.com/api/analytics/track',
                 json={
-                    'trackingId': '${trackingId}',
-                    'utmSource': 'login',
+                    'trackingId': '${trackingId}', # 🔒 FIXED: Do not change
+                    'utmSource': 'login',          # 🔒 FIXED: Do not change
+                    
+                    # 🛠️ CUSTOMIZABLE FIELDS:
+                    # - Change 'user' to match your authenticated user instance variable
+                    # - Change 'username' or 'first_name' to match your Custom User Model fields
                     'visitorName': getattr(user, 'username', 'Python User'),
+                    
+                    # - Change 'email' to match your Custom User Model email field
                     'visitorEmail': getattr(user, 'email', ''),
                 },
                 timeout=2,
@@ -184,15 +220,20 @@ def user_login(request):
 import requests
 
 def google_callback(request):
+    # 🔍 CUSTOMIZABLE VARIABLE: Change 'profile' to match your oauth profile dictionary name (e.g., user_data, res)
     profile = google_auth.get_user_profile(request)
 
-    # 🚀 COPY & PASTE THIS TRACKING CODE HERE:
+    // 🚀 COPY & PASTE THIS TRACKING CODE HERE:
     try:
         requests.post(
             'https://deploywatch.onrender.com/api/analytics/track',
             json={
-                'trackingId': '${trackingId}',
-                'utmSource': 'google_login',
+                'trackingId': '${trackingId}', // 🔒 FIXED: Do not change
+                'utmSource': 'google_login',   // 🔒 FIXED: Do not change
+                
+                # 🛠️ CUSTOMIZABLE FIELDS:
+                # - Change 'profile' to match your own dictionary variable name
+                # - ⚠️ NOTE: 'name' and 'email' are standard string keys returned by Google UserInfo API. Do not change them.
                 'visitorName': profile.get('name', 'Google User'),
                 'visitorEmail': profile.get('email', ''),
             },
@@ -204,14 +245,21 @@ def google_callback(request):
   java: `// 📂 TYPE A: Backend Form Login (Java / Spring Boot)
 @PostMapping("/api/auth/login")
 public ResponseEntity<?> loginUser(@RequestBody LoginRequest req) {
+    // 🔍 CUSTOMIZABLE VARIABLE: Change 'javaUser' to your local Entity class object name (e.g., user, account)
     User javaUser = userService.authenticate(req.getEmail(), req.getPassword());
     
     if (javaUser != null) {
         // 🚀 COPY & PASTE THIS TRACKING CODE HERE:
         Map<String, String> payload = Map.of(
-            "trackingId", "${trackingId}",
-            "utmSource", "login",
+            "trackingId", "${trackingId}", // 🔒 FIXED: Do not change
+            "utmSource", "login",          // 🔒 FIXED: Do not change
+            
+            // 🛠️ CUSTOMIZABLE FIELDS:
+            // - Change 'javaUser' to match your authenticated Entity instance name
+            // - Change '.getName()' or '.getUsername()' to match your Entity getter methods
             "visitorName", javaUser.getName() == null ? "Java User" : javaUser.getName(),
+            
+            // - Change '.getEmail()' to match your Entity email getter method
             "visitorEmail", javaUser.getEmail() == null ? "" : javaUser.getEmail()
         );
 
@@ -225,12 +273,17 @@ public ResponseEntity<?> loginUser(@RequestBody LoginRequest req) {
   googleJava: `// 📂 TYPE B: Backend Google Login / Spring Security OAuth2 (Java / Spring Boot)
 @GetMapping("/login/oauth2/code/google")
 public void onGoogleLoginSuccess(Authentication authentication) {
+    // 🔍 CUSTOMIZABLE VARIABLE: Change 'oauth2User' to your preferred casted variable name
     OAuth2User oauth2User = (OAuth2User) authentication.getPrincipal();
 
     // 🚀 COPY & PASTE THIS TRACKING CODE HERE:
     Map<String, String> payload = Map.of(
-        "trackingId", "${trackingId}",
-        "utmSource", "google_login",
+        "trackingId", "${trackingId}", // 🔒 FIXED: Do not change
+        "utmSource", "google_login",   // 🔒 FIXED: Do not change
+        
+        // 🛠️ CUSTOMIZABLE FIELDS:
+        // - Change 'oauth2User' to match your Principal variable name
+        // - ⚠️ NOTE: Spring Security maps standard Google token claims to "name" and "email". Do not change these string parameters.
         "visitorName", oauth2User.getAttribute("name") != null ? oauth2User.getAttribute("name") : "Google User",
         "visitorEmail", oauth2User.getAttribute("email") != null ? oauth2User.getAttribute("email") : ""
     );
@@ -247,6 +300,7 @@ public async Task<IActionResult> Login([FromBody] LoginModel model)
     var result = await _signInManager.PasswordSignInAsync(model.Email, model.Password, false, false);
     if (result.Succeeded)
     {
+        // 🔍 CUSTOMIZABLE VARIABLE: Change 'netUser' to your local Identity User variable (e.g., user, appUser)
         var netUser = await _userManager.FindByEmailAsync(model.Email);
 
         // 🚀 COPY & PASTE THIS TRACKING CODE HERE:
@@ -254,9 +308,15 @@ public async Task<IActionResult> Login([FromBody] LoginModel model)
             await httpClient.PostAsJsonAsync(
                 "https://deploywatch.onrender.com/api/analytics/track",
                 new {
-                    trackingId = "${trackingId}",
-                    utmSource = "login",
+                    trackingId = "${trackingId}", // 🔒 FIXED: Do not change
+                    utmSource = "login",          // 🔒 FIXED: Do not change
+                    
+                    // 🛠️ CUSTOMIZABLE FIELDS:
+                    // - Change 'netUser' to match your application user object variable
+                    // - Change '.UserName' or '.FullName' to match your Identity standard/custom property columns
                     visitorName = netUser.UserName ?? "C# User",
+                    
+                    // - Change '.Email' to match your user email property column
                     visitorEmail = netUser.Email ?? ""
                 }
             );
@@ -269,6 +329,7 @@ public async Task<IActionResult> Login([FromBody] LoginModel model)
 [HttpGet("google-response")]
 public async Task<IActionResult> GoogleCallback() {
     var info = await _signInManager.GetExternalLoginInfoAsync();
+    // 🔍 CUSTOMIZABLE VARIABLE: Change 'googleClaims' to your local ClaimsPrincipal instance variable name
     var googleClaims = info.Principal;
 
     // 🚀 COPY & PASTE THIS TRACKING CODE HERE:
@@ -276,8 +337,12 @@ public async Task<IActionResult> GoogleCallback() {
         await httpClient.PostAsJsonAsync(
             "https://deploywatch.onrender.com/api/analytics/track",
             new {
-                trackingId = "${trackingId}",
-                utmSource = "google_login",
+                trackingId = "${trackingId}", // 🔒 FIXED: Do not change
+                utmSource = "google_login",   // 🔒 FIXED: Do not change
+                
+                // 🛠️ CUSTOMIZABLE FIELDS:
+                // - Change 'googleClaims' to match your ClaimsPrincipal instance name
+                // - ⚠️ NOTE: ClaimTypes.Name and ClaimTypes.Email are standard .NET security definitions that extract Google's standard payload. No need to change them.
                 visitorName = googleClaims.FindFirstValue(ClaimTypes.Name) ?? "Google User",
                 visitorEmail = googleClaims.FindFirstValue(ClaimTypes.Email) ?? ""
             }
