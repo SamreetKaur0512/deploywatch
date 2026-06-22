@@ -8,74 +8,58 @@ const STEPS = ['Track Views', 'Ping Status', 'Track Logins', 'Manage Users'];
 
 // 🎯 ਸਾਰੀਆਂ ਲੈਂਗੁਏਜਿਸ ਦੇ ਨੋਰਮਲ ਅਤੇ ਗੂਗਲ ਲੌਗਇਨ ਦੇ 100% ਕੰਪਲੀਟ ਕੋਡ ਬਲਾਕ
 const buildLoginTrackingSamples = (trackingId) => ({
-  react: `// 📂 PASTE THIS: Inside your Login/Register Form Submit Handler (Frontend React/Vue)
-// 🔍 WHERE TO FIND VARIABLES: Look at your login API response object (e.g., res.data.user)
+  react: `// 📂 TYPE A: Frontend Form Login (React / Vue / Angular)
+// 🔍 WHERE TO FIND VARIABLES: Inside your login API response object (e.g., res.data.user)
+const handleLoginSuccess = async (email, password) => {
+  const res = await authAPI.login({ email, password });
+  if (res.data.success) {
+    const currentUser = res.data.user; 
 
-const handleLoginSubmit = async (e) => {
-  e.preventDefault();
-  setLoading(true);
-  try {
-    const res = await authAPI.login(form);
-    
-    if (res.data.success) {
-      const currentUser = res.data.user; // Your logged-in user object
-
-      // 🚀 COPY & PASTE THIS TRACKING CODE HERE:
-      fetch('https://deploywatch.onrender.com/api/analytics/track', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          trackingId: '${trackingId}',
-          utmSource: 'login',
-          // ⚠️ BEFORE PASTING: Change 'currentUser.username/email' to match your API response fields
-          visitorName: currentUser?.username || currentUser?.name || 'Anonymous User',
-          visitorEmail: currentUser?.email || 'no-email@deploywatch.com'
-        })
-      }).catch(() => {});
-      
-      // Your existing token storage and navigation logic
-      login(res.data.token, res.data.user);
-    }
-  } catch (err) {
-    setError(err.message);
-  } finally {
-    setLoading(false);
+    // 🚀 PASTE THIS TRACKING CODE HERE:
+    fetch('https://deploywatch.onrender.com/api/analytics/track', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        trackingId: '${trackingId}',
+        utmSource: 'login',
+        // ⚠️ BEFORE PASTING: Change 'currentUser.username' to match your API response fields
+        visitorName: currentUser?.username || currentUser?.name || 'Anonymous User',
+        visitorEmail: currentUser?.email || 'no-email@deploywatch.com'
+      })
+    }).catch(() => {});
   }
 };`,
 
-  googleReact: `// 📂 PASTE THIS: Inside your Google Login Success Callback (Frontend React - @react-oauth/google)
+  googleReact: `// 📂 TYPE B: Frontend Google Login / OAuth (React / Vue / Angular)
 // 🔍 WHERE TO FIND VARIABLES: Decode Google's credential response JWT token to get profile data
-
 const handleGoogleSuccess = (credentialResponse) => {
   // Decode JWT token (Using jwt-decode library)
   const googleUser = jwt_decode(credentialResponse.credential); 
 
-  // 🚀 COPY & PASTE THIS TRACKING CODE HERE:
+  // 🚀 PASTE THIS TRACKING CODE HERE:
   fetch('https://deploywatch.onrender.com/api/analytics/track', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       trackingId: '${trackingId}',
       utmSource: 'google_login',
-      // ⚠️ BEFORE PASTING: Google standard fields are 'name' and 'email'
+      // ⚠️ BEFORE PASTING: 
+      // 1. Change 'googleUser' to match your own response object variable name (e.g., res, profile).
+      // 2. Google standard fields are always '.name' and '.email' (Do NOT change these backend sub-fields).
       visitorName: googleUser?.name || googleUser?.given_name || 'Google User',
       visitorEmail: googleUser?.email || ''
     })
   }).catch(() => {});
-
-  // Your existing state changes or dashboard navigation...
 };`,
 
-  node: `// 📂 PASTE THIS: Inside your Backend Login Controller (authController.js / route handler)
-// 🔍 WHERE TO FIND VARIABLES: From the user object fetched from MongoDB/SQL database after password matches
-
+  node: `// 📂 TYPE A: Backend Controller Login (Node.js / Express)
+// 🔍 WHERE TO FIND VARIABLES: From the user object fetched from MongoDB/SQL database
 const loginUser = async (req, res) => {
   const { email, password } = req.body;
   const dbUser = await User.findOne({ email });
 
   if (dbUser && (await dbUser.matchPassword(password))) {
-    
-    // 🚀 COPY & PASTE THIS TRACKING CODE HERE (Before sending response):
+    // 🚀 PASTE THIS TRACKING CODE HERE (Before sending JSON response):
     await fetch('https://deploywatch.onrender.com/api/analytics/track', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -88,70 +72,83 @@ const loginUser = async (req, res) => {
       })
     }).catch(() => {});
 
-    // Send JWT token or Session response...
     res.json({ success: true, token: generateToken(dbUser._id) });
   }
 };`,
 
-  googleNode: `// 📂 PASTE THIS: Inside your Backend Google OAuth Callback Route (Node.js / Passport.js)
+  googleNode: `// 📂 TYPE B: Backend Google Login / Passport Callback (Node.js / Express)
 // 🔍 WHERE TO FIND VARIABLES: Passport.js automatically passes user profile in req.user
-
 app.get('/auth/google/callback', passport.authenticate('google'), async (req, res) => {
-  const googleProfile = req.user; // Authenticated user object from Google
+  const googleProfile = req.user; 
 
-  // 🚀 COPY & PASTE THIS TRACKING CODE HERE (Before redirecting):
+  // 🚀 PASTE THIS TRACKING CODE HERE (Before redirecting):
   await fetch('https://deploywatch.onrender.com/api/analytics/track', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       trackingId: '${trackingId}',
       utmSource: 'google_login',
-      // ⚠️ BEFORE PASTING: Change mapping based on Passport strategy config
+      // ⚠️ BEFORE PASTING: 
+      // 1. Change 'googleProfile' to match your own object name (e.g., req.user, profile).
+      // 2. Google Passport fields are standard: displayName and emails[0].value.
       visitorName: googleProfile.displayName || googleProfile.name?.givenName || 'Google User',
       visitorEmail: googleProfile.emails?.[0]?.value || ''
     })
   }).catch(() => {});
 
-  // Redirect to your application dashboard
   res.redirect('/dashboard');
 });`,
 
-  php: `// 📂 PASTE THIS: Inside your Laravel LoginController or PHP custom authentication script
-// 🔍 WHERE TO FIND VARIABLES: From Laravel's Auth::user() helper or your Custom $_SESSION['user']
-
+  php: `// 📂 TYPE A: Backend Form Login (PHP / Laravel)
 public function login(Request $request) {
     if (Auth::attempt($request->only('email', 'password'))) {
-        $laravelUser = Auth::user(); // Your logged-in user model
+        $laravelUser = Auth::user(); 
 
-        // 🚀 COPY & PASTE THIS TRACKING CODE HERE:
+        // 🚀 PASTE THIS TRACKING CODE HERE:
         $payload = [
             'trackingId'   => '${trackingId}',
             'utmSource'    => 'login',
-            // ⚠️ BEFORE PASTING: Change ->name/email to match your Users table columns
             'visitorName'  => $laravelUser->name ?? $laravelUser->username ?? 'Anonymous PHP User',
             'visitorEmail' => $laravelUser->email ?? ''
         ];
-
-        try {
-            $ch = curl_init('https://deploywatch.onrender.com/api/analytics/track');
-            curl_setopt_array($ch, [
-                CURLOPT_POST => true,
-                CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
-                CURLOPT_POSTFIELDS => json_encode($payload),
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_TIMEOUT => 2,
-            ]);
-            curl_exec($ch);
-            curl_close($ch);
-        } catch (\\Throwable $e) {}
-
+        $this->sendToDeployWatch($payload);
         return redirect()->intended('dashboard');
     }
 }`,
 
-  python: `# 📂 PASTE THIS: Inside your Django views.py or Flask login route handler
-# 🔍 WHERE TO FIND VARIABLES: From Django's 'request.user' or authenticated user instance
+  googlePhp: `// 📂 TYPE B: Backend Google Login / Socialite OAuth (PHP / Laravel)
+public function handleGoogleCallback() {
+    // Laravel Socialite fetches Google User Object
+    $googleUser = Socialite::driver('google')->user();
 
+    // 🚀 PASTE THIS TRACKING CODE HERE:
+    $payload = [
+        'trackingId'   => '${trackingId}',
+        'utmSource'    => 'google_login',
+        // ⚠️ BEFORE PASTING: 
+        // 1. Change '$googleUser' to match your own variable name (e.g., $user).
+        // 2. Socialite standard Google methods are ->getName() and ->getEmail().
+        'visitorName'  => $googleUser->getName() ?? 'Google User',
+        'visitorEmail' => $googleUser->getEmail() ?? ''
+    ];
+
+    try {
+        $ch = curl_init('https://deploywatch.onrender.com/api/analytics/track');
+        curl_setopt_array($ch, [
+            CURLOPT_POST => true,
+            CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
+            CURLOPT_POSTFIELDS => json_encode($payload),
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => 2,
+        ]);
+        curl_exec($ch);
+        curl_close($ch);
+    } catch (\\Throwable $e) {}
+
+    return redirect()->intended('dashboard');
+}`,
+
+  python: `# 📂 TYPE A: Backend Form Login (Python / Django / Flask)
 from django.contrib.auth import authenticate, login
 import requests
 
@@ -160,73 +157,118 @@ def user_login(request):
     if user is not None:
         login(request, user)
 
-        # 🚀 COPY & PASTE THIS TRACKING CODE HERE:
+        # 🚀 PASTE THIS TRACKING CODE HERE:
         try:
-            requests.post(
-                'https://deploywatch.onrender.com/api/analytics/track',
-                json={
-                    'trackingId': '${trackingId}',
-                    'utmSource': 'login',
-                    # ⚠️ BEFORE PASTING: Adjust fields according to your Custom User Model properties
-                    'visitorName': getattr(user, 'username', getattr(user, 'first_name', 'Python User')),
-                    'visitorEmail': getattr(user, 'email', ''),
-                },
-                timeout=2,
-            )
-        except Exception:
-            pass`,
+            requests.post('https://deploywatch.onrender.com/api/analytics/track', json={
+                'trackingId': '${trackingId}',
+                'utmSource': 'login',
+                'visitorName': getattr(user, 'username', 'Python User'),
+                'visitorEmail': getattr(user, 'email', ''),
+            }, timeout=2)
+        except Exception: pass`,
 
-  java: `// 📂 PASTE THIS: Inside your Spring Boot Auth Controller or Security SuccessHandler
-// 🔍 WHERE TO FIND VARIABLES: From Spring Security Principal context or your Database entity class
+  googlePython: `# 📂 TYPE B: Backend Google Login / Auth OAuth (Python / Django / Flask)
+import requests
 
+def google_callback(request):
+    # If your Google OAuth library fetches profile as a dictionary
+    profile = google_auth.get_user_profile(request)
+
+    # 🚀 PASTE THIS TRACKING CODE HERE:
+    try:
+        requests.post(
+            'https://deploywatch.onrender.com/api/analytics/track',
+            json={
+                'trackingId': '${trackingId}',
+                'utmSource': 'google_login',
+                # ⚠️ BEFORE PASTING: 
+                # 1. Change 'profile' to match your dictionary name (e.g., user_data, res).
+                # 2. Google standard payload keys are always 'name' and 'email'.
+                'visitorName': profile.get('name', 'Google User'),
+                'visitorEmail': profile.get('email', ''),
+            },
+            timeout=2
+        )
+    except Exception:
+        pass`,
+
+  java: `// 📂 TYPE A: Backend Form Login (Java / Spring Boot)
 @PostMapping("/api/auth/login")
 public ResponseEntity<?> loginUser(@RequestBody LoginRequest req) {
     User javaUser = userService.authenticate(req.getEmail(), req.getPassword());
-    
     if (javaUser != null) {
-        // 🚀 COPY & PASTE THIS TRACKING CODE HERE:
+        // 🚀 PASTE THIS TRACKING CODE HERE:
         Map<String, String> payload = Map.of(
             "trackingId", "${trackingId}",
             "utmSource", "login",
-            // ⚠️ BEFORE PASTING: Change .getName()/.getEmail() to match your Entity class getters
             "visitorName", javaUser.getName() == null ? "Java User" : javaUser.getName(),
             "visitorEmail", javaUser.getEmail() == null ? "" : javaUser.getEmail()
         );
-
-        try {
-            new RestTemplate().postForObject("https://deploywatch.onrender.com/api/analytics/track", payload, String.class);
-        } catch (Exception e) {}
+        new RestTemplate().postForObject("https://deploywatch.onrender.com/api/analytics/track", payload, String.class);
     }
-    return ResponseEntity.ok(new AuthResponse("Success"));
+    return ResponseEntity.ok("Success");
 }`,
 
-  dotnet: `// 📂 PASTE THIS: Inside your ASP.NET Core Identity controller or minimal API endpoint
-// 🔍 WHERE TO FIND VARIABLES: From Microsoft.AspNetCore.Identity ApplicationUser object
+  googleJava: `// 📂 TYPE B: Backend Google Login / Spring Security OAuth2 (Java / Spring Boot)
+@GetMapping("/login/oauth2/code/google")
+public void onGoogleLoginSuccess(Authentication authentication) {
+    // Spring Security automatically fetches Google Principal attributes
+    OAuth2User oauth2User = (OAuth2User) authentication.getPrincipal();
 
+    // 🚀 PASTE THIS TRACKING CODE HERE:
+    Map<String, String> payload = Map.of(
+        "trackingId", "${trackingId}",
+        "utmSource", "google_login",
+        // ⚠️ BEFORE PASTING: 
+        // 1. Change 'oauth2User' to match your Principal variable name.
+        // 2. Google attributes are always mapped standard to "name" and "email".
+        "visitorName", oauth2User.getAttribute("name") != null ? oauth2User.getAttribute("name") : "Google User",
+        "visitorEmail", oauth2User.getAttribute("email") != null ? oauth2User.getAttribute("email") : ""
+    );
+
+    try {
+        new RestTemplate().postForObject("https://deploywatch.onrender.com/api/analytics/track", payload, String.class);
+    } catch (Exception e) {}
+}`,
+
+  dotnet: `// 📂 TYPE A: Backend Form Login (C# / .NET Core Identity)
 [HttpPost("login")]
-public async Task<IActionResult> Login([FromBody] LoginModel model)
-{
+public async Task<IActionResult> Login([FromBody] LoginModel model) {
     var result = await _signInManager.PasswordSignInAsync(model.Email, model.Password, false, false);
-    if (result.Succeeded)
-    {
+    if (result.Succeeded) {
         var netUser = await _userManager.FindByEmailAsync(model.Email);
-
-        // 🚀 COPY & PASTE THIS TRACKING CODE HERE:
-        try {
-            await httpClient.PostAsJsonAsync(
-                "https://deploywatch.onrender.com/api/analytics/track",
-                new {
-                    trackingId = "${trackingId}",
-                    utmSource = "login",
-                    // ⚠️ BEFORE PASTING: Change netUser.UserName/Email to match your IdentityUser Schema fields
-                    visitorName = netUser.UserName ?? "C# User",
-                    visitorEmail = netUser.Email ?? ""
-                }
-            );
-        } catch (Exception {}
+        // 🚀 PASTE THIS TRACKING CODE HERE:
+        var payload = new { trackingId = "${trackingId}", utmSource = "login", visitorName = netUser.UserName, visitorEmail = netUser.Email };
+        await httpClient.PostAsJsonAsync("https://deploywatch.onrender.com/api/analytics/track", payload);
     }
     return Ok();
 }`,
+
+  googleDotnet: `// 📂 TYPE B: Backend Google Login / External Authentication (C# / .NET Core)
+[HttpGet("google-response")]
+public async Task<IActionResult> GoogleCallback() {
+    // .NET Identity External Login Info
+    var info = await _signInManager.GetExternalLoginInfoAsync();
+    var googleClaims = info.Principal;
+
+    // 🚀 PASTE THIS TRACKING CODE HERE:
+    try {
+        await httpClient.PostAsJsonAsync(
+            "https://deploywatch.onrender.com/api/analytics/track",
+            new {
+                trackingId = "${trackingId}",
+                utmSource = "google_login",
+                // ⚠️ BEFORE PASTING:
+                // 1. Change 'googleClaims' to match your ClaimsPrincipal instance.
+                // 2. Standard ClaimTypes format maps to Name and EmailAddress.
+                visitorName = googleClaims.FindFirstValue(ClaimTypes.Name) ?? "Google User",
+                visitorEmail = googleClaims.FindFirstValue(ClaimTypes.Email) ?? ""
+            }
+        );
+    } catch (Exception) {}
+
+    return RedirectToLocal("/Dashboard");
+}`
 });
 
 const SetupGuideModal = ({ project, onClose }) => {
@@ -367,21 +409,25 @@ const SetupGuideModal = ({ project, onClose }) => {
                 <div className="sgm-info-title" style={{ color: 'var(--accent)' }}>🛠️ Universal Customization Rules:</div>
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', padding: '0.4rem 0', lineHeight: '1.5' }}>
                   1. Keep the <code>trackingId</code> exactly as shown — it links directly to your dashboard.<br />
-                  2. <strong>Do NOT blindly paste:</strong> Change the placeholder user fields (like <code>user.name</code> or <code>user.email</code>) to match your custom database schema or API response keys.<br />
-                  3. <strong>Debugging Tip:</strong> If you're unsure what your API returns, put a <code>console.log(response)</code> or <code>print(user)</code> inside your logic to inspect variables.
+                  2. <strong>Do NOT blindly paste:</strong> Change the placeholder user fields (like <code>user.name</code>) to match your custom backend variable names.<br />
+                  3. <strong>Debugging Tip:</strong> If you're unsure what your login system returns, put a <code>console.log()</code> or <code>print()</code> statement inside your code to inspect variables.
                 </div>
               </div>
 
               <div className="sgm-code-grid" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', marginTop: '1rem' }}>
                 {[
                   ['React / Vue / Angular (Normal Login - Frontend)', loginTrackingSamples.react, 'login-react'],
-                  ['React / Vue (Google Login / OAuth - Frontend)', loginTrackingSamples.googleReact, 'login-google-react'],
+                  ['React / Vue / Angular (Google Login / OAuth - Frontend)', loginTrackingSamples.googleReact, 'login-google-react'],
                   ['Node.js / Express (Normal Login - Backend)', loginTrackingSamples.node, 'login-node'],
                   ['Node.js / Express (Google Login / Passport Callback)', loginTrackingSamples.googleNode, 'login-google-node'],
-                  ['PHP / Laravel (Backend)', loginTrackingSamples.php, 'login-php'],
-                  ['Python / Django / Flask (Backend)', loginTrackingSamples.python, 'login-python'],
-                  ['Java / Spring Boot (Backend)', loginTrackingSamples.java, 'login-java'],
-                  ['C# / .NET (Backend)', loginTrackingSamples.dotnet, 'login-dotnet'],
+                  ['PHP / Laravel (Normal Form Login)', loginTrackingSamples.php, 'login-php'],
+                  ['PHP / Laravel (Google Login / Socialite OAuth)', loginTrackingSamples.googlePhp, 'login-google-php'],
+                  ['Python / Django / Flask (Normal Form Login)', loginTrackingSamples.python, 'login-python'],
+                  ['Python / Django / Flask (Google Login / Auth OAuth)', loginTrackingSamples.googlePython, 'login-google-python'],
+                  ['Java / Spring Boot (Normal Form Login)', loginTrackingSamples.java, 'login-java'],
+                  ['Java / Spring Boot (Google Login / OAuth2 Context)', loginTrackingSamples.googleJava, 'login-google-java'],
+                  ['C# / .NET Core (Normal Identity Login)', loginTrackingSamples.dotnet, 'login-dotnet'],
+                  ['C# / .NET Core (Google Login / ClaimsPrincipal)', loginTrackingSamples.googleDotnet, 'login-google-dotnet'],
                 ].map(([label, sample, key]) => (
                   <div className="sgm-code-block" key={key} style={{ borderLeft: '3px solid var(--purple)' }}>
                     <div className="sgm-code-label" style={{ fontWeight: '600', color: 'var(--text-main)' }}>
