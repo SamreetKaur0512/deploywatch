@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { X, Copy, Check, BookOpen, Code, Database, Zap, Users } from 'lucide-react';
 import './SetupGuideModal.css';
 
@@ -6,100 +6,189 @@ const BACKEND_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
 
 const STEPS = ['Track Views', 'Ping Status', 'Track Logins', 'Manage Users'];
 
-// 🎯 ਸੈਂਪਲ ਕੋਡ ਨੂੰ ਇੱਥੇ ਬਾਹਰ ਰੱਖਣ ਨਾਲ JSX ਵਿੱਚ ਕਦੇ ਵੀ ਬ੍ਰੈਕਟਸ ਦਾ ਐਰਰ ਨਹੀਂ ਆਵੇਗਾ
+// 🎯 ਹਰ ਇੱਕ ਲੈਂਗੁਏਜ ਲਈ ਬਿਲਕੁਲ ਆਜ਼ਾਦ, ਪੂਰਾ ਅਤੇ ਕਲੀਅਰ ਕੋਡ ਪੇਲੋਡ
 const buildLoginTrackingSamples = (trackingId) => ({
-  javascript: `// Call this after login/register success:
-const trackLogin = (user) => {
+  react: `// 📂 PASTE THIS: Inside your Login/Register Form Submit Handler (Frontend React/Vue)
+// 🔍 WHERE TO FIND VARIABLES: Look at your login API response object (e.g., res.data.user)
+
+const handleLoginSuccess = async (email, password) => {
+  const res = await authAPI.login({ email, password });
+  
+  if (res.data.success) {
+    const currentUser = res.data.user; // Your logged-in user object
+
+    // 🚀 COPY & PASTE THIS TRACKING CODE HERE:
+    fetch('https://deploywatch.onrender.com/api/analytics/track', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        trackingId: '${trackingId}',
+        utmSource: 'login',
+        // ⚠️ BEFORE PASTING: Change 'currentUser.username/email' to match your API response fields
+        visitorName: currentUser?.username || currentUser?.name || 'Anonymous User',
+        visitorEmail: currentUser?.email || 'no-email@deploywatch.com'
+      })
+    }).catch(() => {});
+    
+    // Your existing login navigation/state logic...
+  }
+};`,
+
+  html: `<script>
+function onLoginSuccess(userObject) {
+  // 🚀 COPY & PASTE THIS TRACKING CODE HERE:
   fetch('https://deploywatch.onrender.com/api/analytics/track', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       trackingId: '${trackingId}',
       utmSource: 'login',
-      visitorName: user.name || '',
-      visitorEmail: user.email || '',
+      // ⚠️ BEFORE PASTING: Map these to your form input values or JavaScript user object fields
+      visitorName: userObject.name || document.getElementById('username').value || 'Guest',
+      visitorEmail: userObject.email || document.getElementById('email').value || ''
     })
   }).catch(() => {});
-};
+}
+</script>`,
 
-// Example:
-trackLogin(user);`,
-  react: `// Put this inside your login/register success handler:
-const data = await login(email, password);
-const user = data.user;
+  node: `// 📂 PASTE THIS: Inside your Backend Login Controller (authController.js / route handler)
+// 🔍 WHERE TO FIND VARIABLES: From the user object fetched from MongoDB/SQL database after password matches
 
-trackLogin(user);
+const loginUser = async (req, res) => {
+  const { email, password } = req.body;
+  const dbUser = await User.findOne({ email });
 
-// Change only these if your app uses different names:
-// visitorName: user.fullName || user.username || ''
-// visitorEmail: user.emailAddress || user.email || ''`,
-  node: `// Node.js / Express - call after password check succeeds
-await fetch('https://deploywatch.onrender.com/api/analytics/track', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    trackingId: '${trackingId}',
-    utmSource: 'login',
-    visitorName: user.name || '',
-    visitorEmail: user.email || '',
-  })
-}).catch(() => {});`,
-  php: `// PHP / Laravel - call after login/register success
-$payload = [
-  'trackingId' => '${trackingId}',
-  'utmSource' => 'login',
-  'visitorName' => $user->name ?? '',
-  'visitorEmail' => $user->email ?? '',
-];
+  if (dbUser && (await dbUser.matchPassword(password))) {
+    
+    // 🚀 COPY & PASTE THIS TRACKING CODE HERE (Before sending response):
+    await fetch('https://deploywatch.onrender.com/api/analytics/track', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        trackingId: '${trackingId}',
+        utmSource: 'login',
+        // ⚠️ BEFORE PASTING: Change 'dbUser.name/email' to match your Database Schema columns
+        visitorName: dbUser.name || dbUser.username || 'Anonymous Backend User',
+        visitorEmail: dbUser.email || ''
+      })
+    }).catch(() => {});
 
-try {
-  $ch = curl_init('https://deploywatch.onrender.com/api/analytics/track');
-  curl_setopt_array($ch, [
-    CURLOPT_POST => true,
-    CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
-    CURLOPT_POSTFIELDS => json_encode($payload),
-    CURLOPT_RETURNTRANSFER => true,
-    CURLOPT_TIMEOUT => 2,
-  ]);
-  curl_exec($ch);
-  curl_close($ch);
-} catch (Throwable $e) {}`,
-  python: `# Python / Django / Flask - call after login/register success
+    // Send JWT token or Session response...
+    res.json({ success: true, token: generateToken(dbUser._id) });
+  }
+};`,
+
+  php: `// 📂 PASTE THIS: Inside your Laravel LoginController or PHP custom authentication script
+// 🔍 WHERE TO FIND VARIABLES: From Laravel's Auth::user() helper or your Custom $_SESSION['user']
+
+public function login(Request $request) {
+    if (Auth::attempt($request->only('email', 'password'))) {
+        $laravelUser = Auth::user(); // Your logged-in user model
+
+        // 🚀 COPY & PASTE THIS TRACKING CODE HERE:
+        $payload = [
+            'trackingId'   => '${trackingId}',
+            'utmSource'    => 'login',
+            // ⚠️ BEFORE PASTING: Change ->name/email to match your Users table columns
+            'visitorName'  => $laravelUser->name ?? $laravelUser->username ?? 'Anonymous PHP User',
+            'visitorEmail' => $laravelUser->email ?? ''
+        ];
+
+        try {
+            $ch = curl_init('https://deploywatch.onrender.com/api/analytics/track');
+            curl_setopt_array($ch, [
+                CURLOPT_POST => true,
+                CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
+                CURLOPT_POSTFIELDS => json_encode($payload),
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT => 2,
+            ]);
+            curl_exec($ch);
+            curl_close($ch);
+        } catch (\\Throwable $e) {}
+
+        return redirect()->intended('dashboard');
+    }
+}`,
+
+  python: `# 📂 PASTE THIS: Inside your Django views.py or Flask login route handler
+# 🔍 WHERE TO FIND VARIABLES: From Django's 'request.user' or authenticated user instance
+
+from django.contrib.auth import authenticate, login
 import requests
 
-try:
-    requests.post(
-        'https://deploywatch.onrender.com/api/analytics/track',
-        json={
-            'trackingId': '${trackingId}',
-            'utmSource': 'login',
-            'visitorName': getattr(user, 'name', '') or '',
-            'visitorEmail': getattr(user, 'email', '') or '',
-        },
-        timeout=2,
-    )
-except Exception:
-    pass`,
-  java: `// Java / Spring Boot - call after login/register success
-Map<String, String> payload = Map.of(
-  "trackingId", "${trackingId}",
-  "utmSource", "login",
-  "visitorName", user.getName() == null ? "" : user.getName(),
-  "visitorEmail", user.getEmail() == null ? "" : user.getEmail()
-);
+def user_login(request):
+    user = authenticate(username=username, password=password)
+    if user is not None:
+        login(request, user)
 
-// Send payload as JSON to:
-// https://deploywatch.onrender.com/api/analytics/track`,
-  dotnet: `// C# / .NET - call after login/register success
-await httpClient.PostAsJsonAsync(
-  "https://deploywatch.onrender.com/api/analytics/track",
-  new {
-    trackingId = "${trackingId}",
-    utmSource = "login",
-    visitorName = user.Name ?? "",
-    visitorEmail = user.Email ?? ""
-  }
-);`,
+        # 🚀 COPY & PASTE THIS TRACKING CODE HERE:
+        try:
+            requests.post(
+                'https://deploywatch.onrender.com/api/analytics/track',
+                json={
+                    'trackingId': '${trackingId}',
+                    'utmSource': 'login',
+                    # ⚠️ BEFORE PASTING: Adjust fields according to your Custom User Model properties
+                    'visitorName': getattr(user, 'username', getattr(user, 'first_name', 'Python User')),
+                    'visitorEmail': getattr(user, 'email', ''),
+                },
+                timeout=2,
+            )
+        except Exception:
+            pass`,
+
+  java: `// 📂 PASTE THIS: Inside your Spring Boot Web Security SuccessHandler or Auth Controller
+// 🔍 WHERE TO FIND VARIABLES: From Spring Security Principal context or your Database entity class
+
+@PostMapping("/api/auth/login")
+public ResponseEntity<?> loginUser(@RequestBody LoginRequest req) {
+    User javaUser = userService.authenticate(req.getEmail(), req.getPassword());
+    
+    if (javaUser != null) {
+        // 🚀 COPY & PASTE THIS TRACKING CODE HERE:
+        Map<String, String> payload = Map.of(
+            "trackingId", "${trackingId}",
+            "utmSource", "login",
+            // ⚠️ BEFORE PASTING: Change .getName()/.getEmail() to match your Entity class getters
+            "visitorName", javaUser.getName() == null ? "Java User" : javaUser.getName(),
+            "visitorEmail", javaUser.getEmail() == null ? "" : javaUser.getEmail()
+        );
+
+        try {
+            new RestTemplate().postForObject("https://deploywatch.onrender.com/api/analytics/track", payload, String.class);
+        } catch (Exception e) {}
+    }
+    return ResponseEntity.ok(new AuthResponse("Success"));
+}`,
+
+  dotnet: `// 📂 PASTE THIS: Inside your ASP.NET Core Identity controller or minimal API endpoint
+// 🔍 WHERE TO FIND VARIABLES: From Microsoft.AspNetCore.Identity ApplicationUser object
+
+[HttpPost("login")]
+public async Task<IActionResult> Login([FromBody] LoginModel model)
+{
+    var result = await _signInManager.PasswordSignInAsync(model.Email, model.Password, false, false);
+    if (result.Succeeded)
+    {
+        var netUser = await _userManager.FindByEmailAsync(model.Email);
+
+        // 🚀 COPY & PASTE THIS TRACKING CODE HERE:
+        try {
+            await httpClient.PostAsJsonAsync(
+                "https://deploywatch.onrender.com/api/analytics/track",
+                new {
+                    trackingId = "${trackingId}",
+                    utmSource = "login",
+                    // ⚠️ BEFORE PASTING: Change netUser.UserName/Email to match your IdentityUser Schema fields
+                    visitorName = netUser.UserName ?? "C# User",
+                    visitorEmail = netUser.Email ?? ""
+                }
+            );
+        } catch (Exception) {}
+    }
+    return Ok();
+}`,
 });
 
 const SetupGuideModal = ({ project, onClose }) => {
@@ -107,9 +196,8 @@ const SetupGuideModal = ({ project, onClose }) => {
   const [copied, setCopied] = useState(null);
 
   const tid = project?.trackingId || 'dw_YOUR_TRACKING_ID';
-  const lang = project?.language || 'html';
-  const dbType = project?.dbType || 'none';
   const liveUrl = project?.liveUrl || 'https://your-project.com';
+  const dbType = project?.dbType || 'none';
 
   const copyText = (text, key) => {
     navigator.clipboard.writeText(text);
@@ -117,9 +205,7 @@ const SetupGuideModal = ({ project, onClose }) => {
     setTimeout(() => setCopied(null), 2000);
   };
 
-  const trackingScript = `<!-- DeployWatch Tracking Script -->
-<!-- Paste this just before </body> in your project's main HTML file -->
-<script
+  const trackingScript = `<script
   src="${BACKEND_URL}/tracking.js"
   data-tracking-id="${tid}"
   async>
@@ -163,7 +249,7 @@ const SetupGuideModal = ({ project, onClose }) => {
               <h3 className="sgm-step-title">Add Tracking Script</h3>
               <p className="sgm-step-desc">
                 Paste this single line in your project's main HTML file just before <code>&lt;/body&gt;</code>.
-                Works with <strong>any language or framework</strong> — HTML, React, Vue, Angular, PHP, Python, Node.js, and more.
+                Works with <strong>any language or framework</strong>.
               </p>
 
               <div className="sgm-code-block">
@@ -196,17 +282,6 @@ const SetupGuideModal = ({ project, onClose }) => {
                   ))}
                 </div>
               </div>
-
-              <div className="sgm-tip">
-                💡 <strong>Recruiter tip:</strong> Share your project link as
-                <code style={{ color: 'var(--yellow)', margin: '0 4px' }}>{liveUrl}?ref=linkedin</code>
-                on your resume — you'll get a "Recruiter Visit" notification when someone clicks it!
-              </div>
-
-              <div className="sgm-note">
-                ⚠️ <strong>Note for SPA apps</strong> (React Router, Vue Router etc.): The script tracks the initial page load automatically.
-                See Step 3 to also track internal navigation.
-              </div>
             </div>
           )}
 
@@ -219,44 +294,27 @@ const SetupGuideModal = ({ project, onClose }) => {
               <h3 className="sgm-step-title">Check Project Status</h3>
               <p className="sgm-step-desc">
                 DeployWatch automatically checks if your project is live or down every <strong>10 minutes</strong>.
-                You can also manually ping anytime.
               </p>
 
               <div className="sgm-steps-list">
-                <div className="sgm-list-item">
-                  <span className="sgm-list-num">1</span>
-                  <div>
-                    <strong>Go to Projects page</strong>
-                    <p>Find your project card</p>
+                {[
+                  ['1', 'Go to Projects page', 'Find your project card'],
+                  ['2', 'Click "Ping" button', `Instantly checks if ${liveUrl} is responding`],
+                  ['3', 'See the result', 'Status updates instantly with live logs']
+                ].map(([num, title, desc]) => (
+                  <div className="sgm-list-item" key={num}>
+                    <span className="sgm-list-num">{num}</span>
+                    <div>
+                      <strong>{title}</strong>
+                      <p>{desc}</p>
+                    </div>
                   </div>
-                </div>
-                <div className="sgm-list-item">
-                  <span className="sgm-list-num">2</span>
-                  <div>
-                    <strong>Click "Ping" button</strong>
-                    <p>Instantly checks if <a href={liveUrl} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)' }}>{liveUrl}</a> is responding</p>
-                  </div>
-                </div>
-                <div className="sgm-list-item">
-                  <span className="sgm-list-num">3</span>
-                  <div>
-                    <strong>See the result</strong>
-                    <p>Status updates to <span style={{ color: 'var(--green)' }}>● Active</span> or <span style={{ color: 'var(--red)' }}>● Down</span> with response time in ms</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="sgm-info-box">
-                <div className="sgm-info-title">🔔 Automatic Notifications:</div>
-                <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '0.4rem', lineHeight: 1.6 }}>
-                  If your project goes <strong style={{ color: 'var(--red)' }}>down</strong>, you'll automatically get a notification in DeployWatch dashboard.
-                  Enable email alerts in <strong>Settings → Email Notifications</strong> to also get an email when your project goes down.
-                </p>
+                ))}
               </div>
             </div>
           )}
 
-          {/* Step 3: Track Logins */}
+          {/* ── Step 3: Track Logins ── */}
           {activeStep === 2 && (
             <div className="sgm-step-content">
               <div className="sgm-step-icon" style={{ background: 'var(--purple-dim)', color: 'var(--purple)' }}>
@@ -264,82 +322,41 @@ const SetupGuideModal = ({ project, onClose }) => {
               </div>
               <h3 className="sgm-step-title">Track Login Name & Email</h3>
               <p className="sgm-step-desc">
-                Use this login/register success call to send the logged-in user's name and email to DeployWatch.
-                Do not use any other React example or auto-detect method for login identity.
+                Find your project's language below. Copy and paste the tracking snippet <strong>exactly inside your login success function</strong>.
               </p>
 
-              <div className="sgm-code-block">
-                <div className="sgm-code-label">
-                  <Code size={12} /> Copy this into your login/register success code
-                </div>
-                <pre className="sgm-code mono">{loginTrackingSamples.javascript}</pre>
-                <button className="sgm-copy-btn" onClick={() => copyText(loginTrackingSamples.javascript, 'login-js')}>
-                  {copied === 'login-js' ? <><Check size={12} /> Copied!</> : <><Copy size={12} /> Copy Login Script</>}
-                </button>
-              </div>
-
-              <div className="sgm-info-box">
-                <div className="sgm-info-title">What developers must change:</div>
-                <div className="sgm-info-grid">
-                  {[
-                    ['trackingId', `Keep this project's value: ${tid}`],
-                    ['user.name', 'Change to your app name field, such as user.fullName, user.username, profile.name, or authUser.displayName'],
-                    ['user.email', 'Change to your app email field, such as user.emailAddress, user.emailid, profile.email, or authUser.email'],
-                    ['Where to call', 'Call trackLogin(user) only after login/register succeeds and you have the user object'],
-                  ].map(([field, text]) => (
-                    <div key={field} className="sgm-info-row">
-                      <span className="sgm-info-lang">{field}</span>
-                      <span className="sgm-info-where">{text}</span>
-                    </div>
-                  ))}
+              <div className="sgm-info-box" style={{ borderColor: 'var(--accent)' }}>
+                <div className="sgm-info-title" style={{ color: 'var(--accent)' }}>🛠️ Universal Customization Rules:</div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', padding: '0.4rem 0', lineHeight: '1.5' }}>
+                  1. Keep the <code>trackingId</code> exactly as shown — it links to your dashboard.<br />
+                  2. <strong>Do NOT blindly paste:</strong> Change the placeholder fields (like <code>user.name</code> or <code>user.email</code>) to match your database or API response variable properties.
                 </div>
               </div>
 
-              <div className="sgm-note">
-                <strong>How to find your user fields:</strong> Search your code for login/register success and user data names.
-                Try commands like <code>rg "login|register|signin|signup|currentUser|authUser|user.email|emailid|fullName|username"</code>.
-                In most projects the fields are in the auth controller, login form submit handler, session callback, or user model.
-              </div>
-
-              <div className="sgm-info-box">
-                <div className="sgm-info-title">Where to put it by language/framework:</div>
-                <div className="sgm-info-grid">
-                  {[
-                    ['React / Vue / Angular', 'Inside the login/register form submit success block, after the API returns user data'],
-                    ['Node / Express', 'After password verification succeeds, before or after creating the session/JWT'],
-                    ['Next.js', 'Inside your login API route, server action, or auth callback after user is available'],
-                    ['PHP / Laravel', 'After Auth::attempt/register succeeds and $user is available'],
-                    ['Python / Django / Flask', 'After authenticate/login succeeds and user is available'],
-                    ['Java / Spring', 'After authentication success in controller/service or success handler'],
-                    ['C# / .NET', 'After SignInManager/Identity login succeeds and user is available'],
-                  ].map(([name, where]) => (
-                    <div key={name} className="sgm-info-row">
-                      <span className="sgm-info-lang">{name}</span>
-                      <span className="sgm-info-where">{where}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="sgm-code-grid">
+              <div className="sgm-code-grid" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', marginTop: '1rem' }}>
                 {[
-                  ['React success handler', loginTrackingSamples.react, 'login-react'],
-                  ['Node / Express', loginTrackingSamples.node, 'login-node'],
-                  ['PHP / Laravel', loginTrackingSamples.php, 'login-php'],
-                  ['Python / Django / Flask', loginTrackingSamples.python, 'login-python'],
-                  ['Java / Spring Boot', loginTrackingSamples.java, 'login-java'],
-                  ['C# / .NET', loginTrackingSamples.dotnet, 'login-dotnet'],
+                  ['React / Vue / Angular (Frontend JavaScript)', loginTrackingSamples.react, 'login-react'],
+                  ['Vanilla HTML / JavaScript (Frontend)', loginTrackingSamples.html, 'login-html'],
+                  ['Node.js / Express (Backend)', loginTrackingSamples.node, 'login-node'],
+                  ['PHP / Laravel (Backend)', loginTrackingSamples.php, 'login-php'],
+                  ['Python / Django / Flask (Backend)', loginTrackingSamples.python, 'login-python'],
+                  ['Java / Spring Boot (Backend)', loginTrackingSamples.java, 'login-java'],
+                  ['C# / .NET (Backend)', loginTrackingSamples.dotnet, 'login-dotnet'],
                 ].map(([label, sample, key]) => (
-                  <div className="sgm-code-block" key={key}>
-                    <div className="sgm-code-label">
+                  <div className="sgm-code-block" key={key} style={{ borderLeft: '3px solid var(--purple)' }}>
+                    <div className="sgm-code-label" style={{ fontWeight: '600', color: 'var(--text-main)' }}>
                       <Code size={12} /> {label}
                     </div>
-                    <pre className="sgm-code mono">{sample}</pre>
+                    <pre className="sgm-code mono" style={{ fontSize: '0.78rem', maxHeight: '300px', overflowY: 'auto' }}>{sample}</pre>
                     <button className="sgm-copy-btn" onClick={() => copyText(sample, key)}>
-                      {copied === key ? <><Check size={12} /> Copied!</> : <><Copy size={12} /> Copy</>}
+                      {copied === key ? <><Check size={12} /> Copied!</> : <><Copy size={12} /> Copy Code Block</>}
                     </button>
                   </div>
                 ))}
+              </div>
+
+              <div className="sgm-note" style={{ marginTop: '1.5rem' }}>
+                💡 <strong>How to find your project fields:</strong> Run a search in your codebase for commands like <code>console.log(response)</code> or <code>print(user)</code> inside your login routes to inspect your user properties.
               </div>
             </div>
           )}
@@ -367,39 +384,21 @@ const SetupGuideModal = ({ project, onClose }) => {
                   <span className="sgm-list-num">2</span>
                   <div>
                     <strong>Select your database type</strong>
-                    <p>MongoDB · MySQL · PostgreSQL · Firebase · Supabase · SQLite</p>
+                    <p>MongoDB · MySQL · PostgreSQL · Firebase · Supabase</p>
                   </div>
                 </div>
                 <div className="sgm-list-item">
                   <span className="sgm-list-num">3</span>
                   <div>
                     <strong>Enter connection details</strong>
-                    <p>Your credentials are <strong style={{ color: 'var(--green)' }}>encrypted in your browser</strong> — DeployWatch servers never see them</p>
+                    <p>Your credentials are <strong>encrypted in your browser</strong> — DeployWatch servers never see them</p>
                   </div>
-                </div>
-                <div className="sgm-list-item">
-                  <span className="sgm-list-num">4</span>
-                  <div>
-                    <strong>Click "Users" button</strong>
-                    <p>See all your project users — view, edit, block, or delete</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="sgm-privacy-box">
-                <div style={{ color: 'var(--green)', fontWeight: 700, fontSize: '0.82rem', marginBottom: '0.4rem' }}>
-                  🔒 Privacy Guarantee
-                </div>
-                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                  <strong style={{ color: 'var(--green)' }}>✅ DeployWatch can see:</strong> project names, view counts, status<br />
-                  <strong style={{ color: 'var(--red)' }}>❌ DeployWatch cannot see:</strong> your DB credentials, API tokens, your users' passwords
                 </div>
               </div>
 
               {dbType !== 'none' && (
                 <div className="sgm-tip">
                   ✅ Your project is configured with <strong>{dbType}</strong> database.
-                  Click the <strong>🔒 Creds</strong> button on the project card to update credentials.
                 </div>
               )}
             </div>
