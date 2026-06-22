@@ -6,50 +6,65 @@ const BACKEND_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
 
 const STEPS = ['Track Views', 'Ping Status', 'Track Logins', 'Manage Users'];
 
-// 🎯 ਹਰ ਇੱਕ ਲੈਂਗੁਏਜ ਲਈ ਬਿਲਕੁਲ ਆਜ਼ਾਦ, ਪੂਰਾ ਅਤੇ ਕਲੀਅਰ ਕੋਡ ਪੇਲੋਡ
+// 🎯 ਸਾਰੀਆਂ ਲੈਂਗੁਏਜਿਸ ਦੇ ਨੋਰਮਲ ਅਤੇ ਗੂਗਲ ਲੌਗਇਨ ਦੇ 100% ਕੰਪਲੀਟ ਕੋਡ ਬਲਾਕ
 const buildLoginTrackingSamples = (trackingId) => ({
   react: `// 📂 PASTE THIS: Inside your Login/Register Form Submit Handler (Frontend React/Vue)
 // 🔍 WHERE TO FIND VARIABLES: Look at your login API response object (e.g., res.data.user)
 
-const handleLoginSuccess = async (email, password) => {
-  const res = await authAPI.login({ email, password });
-  
-  if (res.data.success) {
-    const currentUser = res.data.user; // Your logged-in user object
-
-    // 🚀 COPY & PASTE THIS TRACKING CODE HERE:
-    fetch('https://deploywatch.onrender.com/api/analytics/track', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        trackingId: '${trackingId}',
-        utmSource: 'login',
-        // ⚠️ BEFORE PASTING: Change 'currentUser.username/email' to match your API response fields
-        visitorName: currentUser?.username || currentUser?.name || 'Anonymous User',
-        visitorEmail: currentUser?.email || 'no-email@deploywatch.com'
-      })
-    }).catch(() => {});
+const handleLoginSubmit = async (e) => {
+  e.preventDefault();
+  setLoading(true);
+  try {
+    const res = await authAPI.login(form);
     
-    // Your existing login navigation/state logic...
+    if (res.data.success) {
+      const currentUser = res.data.user; // Your logged-in user object
+
+      // 🚀 COPY & PASTE THIS TRACKING CODE HERE:
+      fetch('https://deploywatch.onrender.com/api/analytics/track', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          trackingId: '${trackingId}',
+          utmSource: 'login',
+          // ⚠️ BEFORE PASTING: Change 'currentUser.username/email' to match your API response fields
+          visitorName: currentUser?.username || currentUser?.name || 'Anonymous User',
+          visitorEmail: currentUser?.email || 'no-email@deploywatch.com'
+        })
+      }).catch(() => {});
+      
+      // Your existing token storage and navigation logic
+      login(res.data.token, res.data.user);
+    }
+  } catch (err) {
+    setError(err.message);
+  } finally {
+    setLoading(false);
   }
 };`,
 
-  html: `<script>
-function onLoginSuccess(userObject) {
+  googleReact: `// 📂 PASTE THIS: Inside your Google Login Success Callback (Frontend React - @react-oauth/google)
+// 🔍 WHERE TO FIND VARIABLES: Decode Google's credential response JWT token to get profile data
+
+const handleGoogleSuccess = (credentialResponse) => {
+  // Decode JWT token (Using jwt-decode library)
+  const googleUser = jwt_decode(credentialResponse.credential); 
+
   // 🚀 COPY & PASTE THIS TRACKING CODE HERE:
   fetch('https://deploywatch.onrender.com/api/analytics/track', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       trackingId: '${trackingId}',
-      utmSource: 'login',
-      // ⚠️ BEFORE PASTING: Map these to your form input values or JavaScript user object fields
-      visitorName: userObject.name || document.getElementById('username').value || 'Guest',
-      visitorEmail: userObject.email || document.getElementById('email').value || ''
+      utmSource: 'google_login',
+      // ⚠️ BEFORE PASTING: Google standard fields are 'name' and 'email'
+      visitorName: googleUser?.name || googleUser?.given_name || 'Google User',
+      visitorEmail: googleUser?.email || ''
     })
   }).catch(() => {});
-}
-</script>`,
+
+  // Your existing state changes or dashboard navigation...
+};`,
 
   node: `// 📂 PASTE THIS: Inside your Backend Login Controller (authController.js / route handler)
 // 🔍 WHERE TO FIND VARIABLES: From the user object fetched from MongoDB/SQL database after password matches
@@ -77,6 +92,29 @@ const loginUser = async (req, res) => {
     res.json({ success: true, token: generateToken(dbUser._id) });
   }
 };`,
+
+  googleNode: `// 📂 PASTE THIS: Inside your Backend Google OAuth Callback Route (Node.js / Passport.js)
+// 🔍 WHERE TO FIND VARIABLES: Passport.js automatically passes user profile in req.user
+
+app.get('/auth/google/callback', passport.authenticate('google'), async (req, res) => {
+  const googleProfile = req.user; // Authenticated user object from Google
+
+  // 🚀 COPY & PASTE THIS TRACKING CODE HERE (Before redirecting):
+  await fetch('https://deploywatch.onrender.com/api/analytics/track', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      trackingId: '${trackingId}',
+      utmSource: 'google_login',
+      // ⚠️ BEFORE PASTING: Change mapping based on Passport strategy config
+      visitorName: googleProfile.displayName || googleProfile.name?.givenName || 'Google User',
+      visitorEmail: googleProfile.emails?.[0]?.value || ''
+    })
+  }).catch(() => {});
+
+  // Redirect to your application dashboard
+  res.redirect('/dashboard');
+});`,
 
   php: `// 📂 PASTE THIS: Inside your Laravel LoginController or PHP custom authentication script
 // 🔍 WHERE TO FIND VARIABLES: From Laravel's Auth::user() helper or your Custom $_SESSION['user']
@@ -138,7 +176,7 @@ def user_login(request):
         except Exception:
             pass`,
 
-  java: `// 📂 PASTE THIS: Inside your Spring Boot Web Security SuccessHandler or Auth Controller
+  java: `// 📂 PASTE THIS: Inside your Spring Boot Auth Controller or Security SuccessHandler
 // 🔍 WHERE TO FIND VARIABLES: From Spring Security Principal context or your Database entity class
 
 @PostMapping("/api/auth/login")
@@ -185,7 +223,7 @@ public async Task<IActionResult> Login([FromBody] LoginModel model)
                     visitorEmail = netUser.Email ?? ""
                 }
             );
-        } catch (Exception) {}
+        } catch (Exception {}
     }
     return Ok();
 }`,
@@ -322,22 +360,24 @@ const SetupGuideModal = ({ project, onClose }) => {
               </div>
               <h3 className="sgm-step-title">Track Login Name & Email</h3>
               <p className="sgm-step-desc">
-                Find your project's language below. Copy and paste the tracking snippet <strong>exactly inside your login success function</strong>.
+                Find your project's architecture below. Copy and paste the tracking snippet <strong>exactly inside your login success block</strong>.
               </p>
 
               <div className="sgm-info-box" style={{ borderColor: 'var(--accent)' }}>
                 <div className="sgm-info-title" style={{ color: 'var(--accent)' }}>🛠️ Universal Customization Rules:</div>
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', padding: '0.4rem 0', lineHeight: '1.5' }}>
-                  1. Keep the <code>trackingId</code> exactly as shown — it links to your dashboard.<br />
-                  2. <strong>Do NOT blindly paste:</strong> Change the placeholder fields (like <code>user.name</code> or <code>user.email</code>) to match your database or API response variable properties.
+                  1. Keep the <code>trackingId</code> exactly as shown — it links directly to your dashboard.<br />
+                  2. <strong>Do NOT blindly paste:</strong> Change the placeholder user fields (like <code>user.name</code> or <code>user.email</code>) to match your custom database schema or API response keys.<br />
+                  3. <strong>Debugging Tip:</strong> If you're unsure what your API returns, put a <code>console.log(response)</code> or <code>print(user)</code> inside your logic to inspect variables.
                 </div>
               </div>
 
               <div className="sgm-code-grid" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', marginTop: '1rem' }}>
                 {[
-                  ['React / Vue / Angular (Frontend JavaScript)', loginTrackingSamples.react, 'login-react'],
-                  ['Vanilla HTML / JavaScript (Frontend)', loginTrackingSamples.html, 'login-html'],
-                  ['Node.js / Express (Backend)', loginTrackingSamples.node, 'login-node'],
+                  ['React / Vue / Angular (Normal Login - Frontend)', loginTrackingSamples.react, 'login-react'],
+                  ['React / Vue (Google Login / OAuth - Frontend)', loginTrackingSamples.googleReact, 'login-google-react'],
+                  ['Node.js / Express (Normal Login - Backend)', loginTrackingSamples.node, 'login-node'],
+                  ['Node.js / Express (Google Login / Passport Callback)', loginTrackingSamples.googleNode, 'login-google-node'],
                   ['PHP / Laravel (Backend)', loginTrackingSamples.php, 'login-php'],
                   ['Python / Django / Flask (Backend)', loginTrackingSamples.python, 'login-python'],
                   ['Java / Spring Boot (Backend)', loginTrackingSamples.java, 'login-java'],
@@ -353,10 +393,6 @@ const SetupGuideModal = ({ project, onClose }) => {
                     </button>
                   </div>
                 ))}
-              </div>
-
-              <div className="sgm-note" style={{ marginTop: '1.5rem' }}>
-                💡 <strong>How to find your project fields:</strong> Run a search in your codebase for commands like <code>console.log(response)</code> or <code>print(user)</code> inside your login routes to inspect your user properties.
               </div>
             </div>
           )}
