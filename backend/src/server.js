@@ -103,22 +103,28 @@ app.get('/health', (req, res) => {
 const frontendDistPath = path.resolve(__dirname, '../../frontend/dist');
 const frontendIndexPath = path.join(frontendDistPath, 'index.html');
 
-if (fs.existsSync(frontendDistPath)) {
-  app.use(express.static(frontendDistPath, { index: false }));
+const serveFrontend = (req, res, next) => {
+  if (req.method !== 'GET') return next();
+  if (req.path.startsWith('/api/') || req.path === '/health' || req.path === '/tracking.js' || req.path.startsWith('/socket.io')) {
+    return next();
+  }
 
-  app.get('*', (req, res, next) => {
-    if (req.method !== 'GET') return next();
-    if (req.path.startsWith('/api/') || req.path === '/health' || req.path === '/tracking.js' || req.path.startsWith('/socket.io')) {
-      return next();
-    }
-
-    if (req.accepts('html')) {
+  if (req.accepts('html')) {
+    if (fs.existsSync(frontendIndexPath)) {
       return res.sendFile(frontendIndexPath);
     }
 
-    next();
-  });
+    return res.status(404).send(`<!doctype html><html><body><h1>Frontend build not found</h1><p>Run the frontend build first.</p></body></html>`);
+  }
+
+  next();
+};
+
+if (fs.existsSync(frontendDistPath)) {
+  app.use(express.static(frontendDistPath, { index: false }));
 }
+
+app.get('*', serveFrontend);
 
 // 404 handler
 app.use((req, res) => {
