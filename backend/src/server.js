@@ -1,6 +1,8 @@
 require('dotenv').config();
 const express = require('express');
 const http = require('http');
+const path = require('path');
+const fs = require('fs');
 const { Server } = require('socket.io');
 const cors = require('cors');
 const morgan = require('morgan');
@@ -97,6 +99,26 @@ app.get('/health', (req, res) => {
     timestamp: new Date().toISOString(),
   });
 });
+
+const frontendDistPath = path.resolve(__dirname, '../../frontend/dist');
+const frontendIndexPath = path.join(frontendDistPath, 'index.html');
+
+if (fs.existsSync(frontendDistPath)) {
+  app.use(express.static(frontendDistPath, { index: false }));
+
+  app.get('*', (req, res, next) => {
+    if (req.method !== 'GET') return next();
+    if (req.path.startsWith('/api/') || req.path === '/health' || req.path === '/tracking.js' || req.path.startsWith('/socket.io')) {
+      return next();
+    }
+
+    if (req.accepts('html')) {
+      return res.sendFile(frontendIndexPath);
+    }
+
+    next();
+  });
+}
 
 // 404 handler
 app.use((req, res) => {

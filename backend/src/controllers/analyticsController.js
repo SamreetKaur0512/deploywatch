@@ -65,22 +65,21 @@ const trackView = async (req, res) => {
       recruiterSources.some((s) => (utmSource || '').toLowerCase().includes(s)) ||
       recruiterSources.some((s) => (referrer || '').toLowerCase().includes(s));
 
-    // Prevent duplicate counts from the same client firing the tracking script multiple times
-    // during a single session or a short burst of page loads.
-    const duplicateWindowMs = 5000;
-    const sessionWindowMs = 30 * 60 * 1000;
-    const recentDuplicate = await View.findOne({
-      project: project._id,
-      $or: [
-        ...(sessionId ? [{ sessionId }] : []),
-        { ipAddress: ip, viewedAt: { $gte: new Date(Date.now() - duplicateWindowMs) } },
-        { ipAddress: ip, viewedAt: { $gte: new Date(Date.now() - sessionWindowMs) } },
-      ],
-      viewedAt: { $gte: new Date(Date.now() - sessionWindowMs) },
-    });
+// Prevent duplicate counts from the same client firing the tracking script multiple times.
+// Default cooldown is 30 minutes. If the same visitor stays on the page for longer than that,
+// the next view will only be counted after the cooldown window passes.
+const viewCooldownMs = Number(process.env.VIEW_COOLDOWN_MS || 30 * 60 * 1000);
+const recentDuplicate = await View.findOne({
+  project: project._id,
+  viewedAt: { $gte: new Date(Date.now() - viewCooldownMs) },
+  $or: [
+    ...(sessionId ? [{ sessionId }] : []),
+    { ipAddress: ip },
+  ],
+});
 
-    if (recentDuplicate) {
-      return res.status(200).json({ success: true, message: 'View already tracked for this session.' });
+if (recentDuplicate) {
+  return res.status(200).json({ success: true, message: 'View already tracked within the cooldown window.' });
     }
 
     // Check if this IP has EVER visited this project before (unique visitor)
