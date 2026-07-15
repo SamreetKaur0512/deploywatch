@@ -27,6 +27,7 @@ const parseBrowser = (ua = '') => {
 const trackView = async (req, res) => {
   try {
     const { trackingId, referrer, utmSource, utmMedium, visitorName, visitorEmail, sessionId } = req.body;
+    console.log(`[TRACK] Request received: trackingId=${trackingId}, sessionId=${sessionId}, visitorName=${visitorName}`);
 
     if (!trackingId) {
       return res.status(400).json({ success: false, message: 'trackingId is required.' });
@@ -34,14 +35,17 @@ const trackView = async (req, res) => {
 
     const project = await Project.findOne({ trackingId });
     if (!project || !project.trackingEnabled) {
+      console.log(`[TRACK] Project not found or tracking disabled for trackingId=${trackingId}`);
       return res.status(404).json({ success: false, message: 'Project not found or tracking disabled.' });
     }
+    console.log(`[TRACK] Found project: ${project.name} (${project._id})`);
 
     // Get IP
     const ip =
       req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
       req.socket?.remoteAddress ||
       'unknown';
+    console.log(`[TRACK] IP=${ip}, sessionId=${sessionId}`);
 
     // Try geo lookup
     let country = 'Unknown';
@@ -79,8 +83,11 @@ const recentDuplicate = await View.findOne({
 });
 
 if (recentDuplicate) {
+  console.log(`[TRACK] BLOCKED: Duplicate view for project=${project._id}, IP=${ip}, sessionId=${sessionId}. Last view at ${recentDuplicate.viewedAt}`);
   return res.status(200).json({ success: true, message: 'View already tracked within the cooldown window.' });
-    }
+}
+
+console.log(`[TRACK] PASSED dedup check for project=${project._id}, IP=${ip}`);
 
     // Check if this IP has EVER visited this project before (unique visitor)
     const previousVisit = await View.findOne({ project: project._id, ipAddress: ip });
@@ -104,6 +111,8 @@ if (recentDuplicate) {
       visitorEmail: visitorEmail || '',
       sessionId: sessionId || '',
     });
+
+    console.log(`[TRACK] COUNTED: View created for project=${project._id}, IP=${ip}, isUniqueVisitor=${isUniqueVisitor}`);
 
     // Update project counters — totalViews always, uniqueVisitors only if new IP
     await Project.findByIdAndUpdate(project._id, {
