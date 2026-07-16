@@ -6,16 +6,36 @@ const trackingScript = `
   if (window.deployWatchScriptLoaded) return;
   window.deployWatchScriptLoaded = true;
 
-  function getTrackingId() {
-    var scripts = Array.from(document.querySelectorAll('script[data-tracking-id]'));
-    var script = document.currentScript ||
-      scripts.find(function(item) {
-        return (item.getAttribute('src') || '').includes('/tracking.js');
-      }) ||
-      scripts[0];
+  // IMPORTANT: document.currentScript is ONLY valid while this script is
+  // executing synchronously. Every call site below (sendView) runs later,
+  // inside a setTimeout — by then document.currentScript is always null,
+  // regardless of project type. So we grab it here, at parse time, once,
+  // and reuse it. This is the reliable path; the DOM-query fallback below
+  // only kicks in for the rare case this line itself failed to run early
+  // enough (e.g. script re-inserted dynamically after load).
+  var initialScriptEl = document.currentScript || null;
 
-    return (script && script.getAttribute('data-tracking-id')) ||
+  function findScriptEl() {
+    if (initialScriptEl && document.contains(initialScriptEl)) return initialScriptEl;
+    var scripts = Array.from(document.querySelectorAll('script[data-tracking-id]'));
+    return scripts.find(function(item) {
+      return (item.getAttribute('src') || '').includes('/tracking.js');
+    }) || scripts[0] || null;
+  }
+
+  function getTrackingId() {
+    var script = findScriptEl();
+    var id = (script && script.getAttribute('data-tracking-id')) ||
       window.deployWatchTrackingId || '';
+
+    if (!id && window.console && console.warn) {
+      console.warn(
+        '[DeployWatch] Could not find a data-tracking-id on the tracking script tag. ' +
+        'Views for this project will NOT be counted. Check that the <script src=".../tracking.js" data-tracking-id="..."> ' +
+        'tag is present in the page and was not stripped/rewritten by your build tool.'
+      );
+    }
+    return id;
   }
 
   function getSessionId() {
@@ -33,15 +53,23 @@ const trackingScript = `
   }
 
   function getBackendUrl() {
-    var scripts = Array.from(document.querySelectorAll('script[src]'));
-    var script = document.currentScript ||
-      scripts.find(function(item) {
+    var script = findScriptEl();
+    if (!script) {
+      var scripts = Array.from(document.querySelectorAll('script[src]'));
+      script = scripts.find(function(item) {
         return (item.getAttribute('src') || '').includes('/tracking.js');
-      }) ||
-      scripts[0];
+      }) || scripts[0];
+    }
 
     if (script && script.src) {
       try { return new URL(script.src).origin; } catch(e) {}
+    }
+
+    if (window.console && console.warn) {
+      console.warn(
+        '[DeployWatch] Could not resolve the backend URL from the tracking script tag. ' +
+        'Views for this project will NOT be counted.'
+      );
     }
     return '';
   }

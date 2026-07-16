@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { X, Copy, Check, BookOpen, Code, Database, Zap, Users } from 'lucide-react';
+import { getBackendUrl } from '../../utils/backendUrl';
 import './SetupGuideModal.css';
 
-const BACKEND_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
+const BACKEND_URL = getBackendUrl();
 
 const STEPS = ['Track Views', 'Ping Status', 'Track Logins', 'Manage Users'];
 

@@ -1,7 +1,8 @@
 import { useState } from 'react';
+import { getBackendUrl } from '../../utils/backendUrl';
 import './HowToUse.css';
 
-const BACKEND_URL = import.meta.env.VITE_API_URL?.replace('/api','') || 'http://localhost:5000';
+const BACKEND_URL = getBackendUrl();
 
 const getScript = (language, trackingId, backendUrl) => {
   const tid = trackingId || 'dw_YOUR_TRACKING_ID';
