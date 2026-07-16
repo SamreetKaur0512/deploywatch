@@ -104,14 +104,16 @@ router.afterEach(() => {
                 <div className="sgm-info-title">📍 Where exactly to paste:</div>
                 <div className="sgm-info-grid">
                   {[
-                    ['HTML / PHP',       'index.html or index.php → before </body>'],
-                    ['React',            'public/index.html → before </body>'],
-                    ['Next.js',          'pages/_document.js → in <body> section'],
-                    ['Vue / Nuxt',       'index.html or app.html → before </body>'],
-                    ['Angular',          'src/index.html → before </body>'],
-                    ['Django / Flask',   'base.html template → before </body>'],
-                    ['Laravel',          'resources/views/layouts/app.blade.php → before </body>'],
-                    ['Any other',        'Main HTML template file → before </body>'],
+                    ['HTML / PHP',              'index.html or index.php → before </body>'],
+                    ['React (Vite)',            'index.html in your PROJECT ROOT (⚠️ NOT public/index.html — Vite ignores that file as a template) → before </body>'],
+                    ['React (Create React App)','public/index.html → before </body>'],
+                    ['Next.js',                 'pages/_document.js → in <body> section'],
+                    ['Vue (Vite) / Nuxt',       'index.html in your PROJECT ROOT (⚠️ NOT public/index.html) → before </body>'],
+                    ['Vue (Vue CLI)',           'public/index.html → before </body>'],
+                    ['Angular',                 'src/index.html → before </body>'],
+                    ['Django / Flask',          'base.html template → before </body>'],
+                    ['Laravel',                 'resources/views/layouts/app.blade.php → before </body>'],
+                    ['Any other',               'Main HTML template file → before </body>'],
                   ].map(([lang, where]) => (
                     <div key={lang} className="sgm-info-row">
                       <span className="sgm-info-lang">{lang}</span>
@@ -119,6 +121,19 @@ router.afterEach(() => {
                     </div>
                   ))}
                 </div>
+                <p style={{ fontSize: '0.78rem', color: 'var(--yellow)', marginTop: '0.6rem', lineHeight: 1.5 }}>
+                  ⚠️ <strong>Not sure if your project uses Vite?</strong> If you ran <code>npm create vite@latest</code>
+                  or your project has a <code>vite.config.js</code> file, it's Vite — use the <strong>project root</strong> index.html,
+                  not the one inside <code>public/</code>. Pasting it in the wrong file means the script never ends up in your
+                  built/deployed site and views will never be counted.
+                </p>
+              </div>
+
+              <div className="sgm-note">
+                🔁 <strong>Duplicate view protection (30-minute cooldown):</strong> Views are deduplicated by IP address / browser session,
+                <strong> not</strong> by logged-in account. If multiple people log in with different accounts from the same device/network
+                within 30 minutes, only the <strong>first</strong> visit counts as a view — the rest are treated as duplicates and skipped.
+                This applies the same way whether your project has a login system or not, and whether it's frontend-only or full-stack.
               </div>
 
               <div className="sgm-tip">

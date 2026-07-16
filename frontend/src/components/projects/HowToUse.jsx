@@ -12,14 +12,14 @@ const getScript = (language, trackingId, backendUrl) => {
   const scripts = {
     react: {
       title: 'React / Next.js',
-      where: 'Add this script tag to your app shell HTML (public/index.html or pages/_document.js). The tracker now auto-detects client-side routing for React Router and Next.js.',
+      where: 'If your project uses Vite (has a vite.config.js): paste into the index.html in your PROJECT ROOT — NOT public/index.html, Vite does not use that as a template. If it uses Create React App: paste into public/index.html. For Next.js: pages/_document.js. The tracker auto-detects client-side routing for React Router and Next.js.',
       code:
 `<!-- DeployWatch Tracking -->
 <script src="${trackScriptUrl}" data-tracking-id="${tid}" async></script>`,
     },
     vue: {
       title: 'Vue / Nuxt',
-      where: 'Add this script tag to your app shell HTML (public/index.html or nuxt.config). The tracker now auto-detects client-side routing for Vue Router and Nuxt.',
+      where: 'If your project uses Vite (has a vite.config.js) or Nuxt: paste into the index.html in your PROJECT ROOT — NOT public/index.html, Vite does not use that as a template. If it uses Vue CLI: paste into public/index.html. The tracker auto-detects client-side routing for Vue Router and Nuxt.',
       code:
 `<!-- DeployWatch Tracking -->
 <script src="${trackScriptUrl}" data-tracking-id="${tid}" async></script>`,
@@ -194,7 +194,10 @@ fetch('${BACKEND_URL}/api/analytics/track', {
                 <strong>Views behavior:</strong><br />
                 • Every call to `/api/analytics/track` adds one total view.<br />
                 • If this IP has never visited this project before, it also adds one unique view.<br />
-                • If you call tracking after login, that event is counted as a view too.<br /><br />
+                • If you call tracking after login, that event is counted as a view too.<br />
+                • <strong>Duplicate protection:</strong> views are deduplicated by IP/session for 30 minutes — not by logged-in account.
+                If different users log in from the same device/network within 30 minutes, only the first visit counts. This is the same
+                for every project, frontend-only or full-stack.<br /><br />
                 <strong>React / SPA note:</strong> for React you must import <code>useEffect</code> from React before using it. If your app uses client-side routing, call the tracking function on initial load and again on route changes to capture views without a full page refresh.
               </div>
             </div>
