@@ -130,11 +130,13 @@ router.afterEach(() => {
               </div>
 
               <div className="sgm-note">
-                🔁 <strong>Duplicate view protection (30-minute cooldown):</strong> Views are deduplicated by IP address / browser session,
-                <strong> not</strong> by logged-in account. If multiple people log in with different accounts from the same device/network
-                within 30 minutes, only the <strong>first</strong> visit counts as a view — the rest are treated as duplicates and skipped.
-                This applies the same way whether your project has a login system or not, and whether it's frontend-only or full-stack.
-              </div>
+  🔁 <strong>How views are counted:</strong> Opening your site counts as 1 view. If that same person logs in a
+  few seconds/minutes later, it does <strong>not</strong> add a 2nd view — it's still the same visit.
+  A new view only counts if the same device comes back after <strong>30+ minutes</strong>.
+   30-minute rule is based on the device/browser/Network.
+  So if 2 different people log in from the same device within 30 minutes, that's just <strong>1 view</strong>, not 2 —
+  same rule for every project, with or without login.
+</div>
 
               <div className="sgm-tip">
                 💡 <strong>Recruiter tip:</strong> Share your project link as
@@ -305,7 +307,7 @@ router.afterEach(() => {
             onClick={() => setActiveStep(s => s - 1)}>← Previous</button>
           <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
             Step {activeStep + 1} of {STEPS.length}
-          </span>
+          </span>sgm-note
           {activeStep < STEPS.length - 1
             ? <button className="btn btn-primary btn-sm" onClick={() => setActiveStep(s => s + 1)}>Next →</button>
             : <button className="btn btn-primary btn-sm" onClick={onClose}>Done ✓</button>

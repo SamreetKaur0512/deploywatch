@@ -194,13 +194,12 @@ fetch('${BACKEND_URL}/api/analytics/track', {
                 <strong>Views behavior:</strong><br />
                 • Every call to `/api/analytics/track` adds one total view.<br />
                 • If this IP has never visited this project before, it also adds one unique view.<br />
-                • If you call tracking after login, that event is counted as a view too.<br />
                 • <strong>Duplicate protection:</strong> views are deduplicated by IP/session for 30 minutes — not by logged-in account.
                 If different users log in from the same device/network within 30 minutes, only the first visit counts. This is the same
                 for every project, frontend-only or full-stack.<br /><br />
                 <strong>React / SPA note:</strong> for React you must import <code>useEffect</code> from React before using it. If your app uses client-side routing, call the tracking function on initial load and again on route changes to capture views without a full page refresh.
               </div>
-            </div>
+            </div> 
           </div>
 
         </div>
