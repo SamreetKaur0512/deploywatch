@@ -110,6 +110,12 @@ const HowToUse = ({ project }) => {
               </code>
               &nbsp;— you'll get a special "Recruiter Visit" notification!
             </p>
+            <div className="htu-tip">
+              🔐 <strong>Want visitor name/email from login (including Google login)?</strong> Click the
+              <strong> "Setup Guide"</strong> button on this project card, then go to <strong>Step 3 — Track Logins</strong>.
+              You'll find ready-to-copy code for your exact stack (React, Node, PHP, Python, Java, .NET — normal login
+              and Google OAuth login both covered).
+            </div>
           </div>
 
           {/* Step 2 — Ping */}
