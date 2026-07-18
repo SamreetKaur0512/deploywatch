@@ -459,7 +459,8 @@ const SetupGuideModal = ({ project, onClose }) => {
                 few seconds/minutes later, it does <strong>not</strong> add a 2nd view — it's still the same visit.
                 A new view only counts if the same device comes back after <strong>30+ minutes</strong>.
                 So if 2 different people log in from the same device within 30 minutes, that's just <strong>1 view</strong>, not 2 —
-                same rule for every project, with or without login.
+                same rule for every project, with or without login.This 30-minute rule is based on the device/browser/Network, not the account.
+            
               </div>
             </div>
           )}
