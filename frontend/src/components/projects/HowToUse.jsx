@@ -7,7 +7,6 @@ const BACKEND_URL = getBackendUrl();
 const getScript = (language, trackingId, backendUrl) => {
   const tid = trackingId || 'dw_YOUR_TRACKING_ID';
   const trackScriptUrl = `${backendUrl}/tracking.js`;
-  const url = `${backendUrl}/api/analytics/track`;
 
   const scripts = {
     react: {
@@ -83,7 +82,6 @@ const HowToUse = ({ project }) => {
 
   const lang = project?.language || 'react';
   const script = getScript(lang, project?.trackingId, BACKEND_URL);
-  const loginSnippet = '';
 
   return (
     <div className="htu-wrapper">
@@ -124,9 +122,7 @@ const HowToUse = ({ project }) => {
             </p>
           </div>
 
-          
-
-          {/* Step 4 — Database */}
+          {/* Step 3 — Database */}
           <div className="htu-step">
             <span className="htu-num">Step 3 (Optional) — Manage Your Project's Users</span>
             <h4 className="htu-title">Connect your database</h4>
@@ -153,9 +149,13 @@ const HowToUse = ({ project }) => {
                 React · Vue · Angular · Next.js · Nuxt · HTML · PHP · Python · Django · Flask · Node.js · Express · Laravel · Ruby on Rails · ASP.NET · Go · and more.<br /><br />
                 The tracking script is just a simple <strong>HTTP POST request</strong> — any language that can make HTTP requests can use it.
                 If your language is not listed in the dropdown, select <strong>"Other"</strong> and you'll get the raw API format to implement yourself.<br /><br />
-                <strong>Views behavior:</strong><br />
-                • Every call to `/api/analytics/track` adds one total view.<br />
-                • If this IP has never visited this project before, it also adds one unique view.<br />
+                <strong>How a "view" gets counted:</strong><br />
+                • Anyone who opens your site counts as 1 view.<br />
+                • If they log in a few seconds/minutes later, that does <strong>NOT</strong> add a 2nd view — it's still the same visit,
+                  just now with their name/email attached to it.<br />
+                • A new view only counts again if the <strong>same person comes back after 30+ minutes</strong>.<br />
+                • This 30-minute rule is based on the device/browser/Network, not the account — so 2 different people logging in
+                  from the same device within 30 minutes will only count as 1 view total.<br /><br />
                 <strong>React / SPA note:</strong> for React you must import <code>useEffect</code> from React before using it. If your app uses client-side routing, call the tracking function on initial load and again on route changes to capture views without a full page refresh.
               </div>
             </div>
