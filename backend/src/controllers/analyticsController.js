@@ -21,6 +21,28 @@ const parseBrowser = (ua = '') => {
   return 'Unknown';
 };
 
+// In-memory lock so two near-simultaneous requests for the same project+IP
+// can never both pass the "is there a recent duplicate?" check before either
+// has actually written its View — without this, two requests arriving a few
+// ms apart (e.g. the tracking script's own load/route-change triggers, or a
+// browser retry during a slow cold-started backend) can both see "no
+// duplicate yet" and both insert, even though the dedup check exists.
+// Requests for different keys never wait on each other.
+const trackLocks = new Map();
+async function withTrackLock(key, fn) {
+  const prev = trackLocks.get(key) || Promise.resolve();
+  let release;
+  const next = new Promise((resolve) => { release = resolve; });
+  trackLocks.set(key, prev.then(() => next));
+  await prev;
+  try {
+    return await fn();
+  } finally {
+    release();
+    if (trackLocks.get(key) === next) trackLocks.delete(key);
+  }
+}
+
 // @desc    Track a project view (called from tracking script on user's project)
 // @route   POST /api/analytics/track
 // @access  Public (no auth - called from external sites)
@@ -72,55 +94,69 @@ const trackView = async (req, res) => {
 // Prevent duplicate counts from the same client firing the tracking script multiple times.
 // Default cooldown is 30 minutes. If the same visitor stays on the page for longer than that,
 // the next view will only be counted after the cooldown window passes.
+// The check + create below runs inside withTrackLock so two near-simultaneous requests for the
+// same project+IP can never both pass the check before either has written its View.
 const viewCooldownMs = Number(process.env.VIEW_COOLDOWN_MS || 30 * 60 * 1000);
-const recentDuplicate = await View.findOne({
-  project: project._id,
-  viewedAt: { $gte: new Date(Date.now() - viewCooldownMs) },
-  $or: [
-    ...(sessionId ? [{ sessionId }] : []),
-    { ipAddress: ip },
-  ],
+const lockKey = `${project._id}:${ip}`;
+
+const result = await withTrackLock(lockKey, async () => {
+  const recentDuplicate = await View.findOne({
+    project: project._id,
+    viewedAt: { $gte: new Date(Date.now() - viewCooldownMs) },
+    $or: [
+      ...(sessionId ? [{ sessionId }] : []),
+      { ipAddress: ip },
+    ],
+  });
+
+  if (recentDuplicate) {
+    console.log(`[TRACK] BLOCKED: Duplicate view for project=${project._id}, IP=${ip}, sessionId=${sessionId}. Last view at ${recentDuplicate.viewedAt}`);
+    return { blocked: true };
+  }
+
+  console.log(`[TRACK] PASSED dedup check for project=${project._id}, IP=${ip}`);
+
+  // Check if this IP has EVER visited this project before (unique visitor)
+  const previousVisit = await View.findOne({ project: project._id, ipAddress: ip });
+  const isUniqueVisitor = !previousVisit;
+
+  // Create view record
+  const view = await View.create({
+    project: project._id,
+    projectOwner: project.owner,
+    ipAddress: ip,
+    country,
+    city,
+    device,
+    browser,
+    referrer: referrer || '',
+    utmSource: utmSource || '',
+    utmMedium: utmMedium || '',
+    isRecruiter,
+    isUniqueVisitor,
+    visitorName:  visitorName  || '',
+    visitorEmail: visitorEmail || '',
+    sessionId: sessionId || '',
+  });
+
+  console.log(`[TRACK] COUNTED: View created for project=${project._id}, IP=${ip}, isUniqueVisitor=${isUniqueVisitor}`);
+
+  // Update project counters — totalViews always, uniqueVisitors only if new IP
+  await Project.findByIdAndUpdate(project._id, {
+    $inc: {
+      totalViews: 1,
+      ...(isUniqueVisitor && { uniqueVisitors: 1 }),
+    },
+  });
+
+  return { blocked: false, view, isUniqueVisitor };
 });
 
-if (recentDuplicate) {
-  console.log(`[TRACK] BLOCKED: Duplicate view for project=${project._id}, IP=${ip}, sessionId=${sessionId}. Last view at ${recentDuplicate.viewedAt}`);
+if (result.blocked) {
   return res.status(200).json({ success: true, message: 'View already tracked within the cooldown window.' });
 }
 
-console.log(`[TRACK] PASSED dedup check for project=${project._id}, IP=${ip}`);
-
-    // Check if this IP has EVER visited this project before (unique visitor)
-    const previousVisit = await View.findOne({ project: project._id, ipAddress: ip });
-    const isUniqueVisitor = !previousVisit;
-
-    // Create view record
-    const view = await View.create({
-      project: project._id,
-      projectOwner: project.owner,
-      ipAddress: ip,
-      country,
-      city,
-      device,
-      browser,
-      referrer: referrer || '',
-      utmSource: utmSource || '',
-      utmMedium: utmMedium || '',
-      isRecruiter,
-      isUniqueVisitor,
-      visitorName:  visitorName  || '',
-      visitorEmail: visitorEmail || '',
-      sessionId: sessionId || '',
-    });
-
-    console.log(`[TRACK] COUNTED: View created for project=${project._id}, IP=${ip}, isUniqueVisitor=${isUniqueVisitor}`);
-
-    // Update project counters — totalViews always, uniqueVisitors only if new IP
-    await Project.findByIdAndUpdate(project._id, {
-      $inc: {
-        totalViews: 1,
-        ...(isUniqueVisitor && { uniqueVisitors: 1 }),
-      },
-    });
+const { isUniqueVisitor } = result;
 
     // Send real-time notification to project owner
     const io = req.app.get('io');
