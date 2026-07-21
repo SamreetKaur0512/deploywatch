@@ -17,22 +17,19 @@ const handleLoginSuccess = async (email, password) => {
     const currentUser = res.data.user; 
 
     // 🚀 COPY & PASTE THIS TRACKING CODE HERE:
-    fetch('https://deploywatch.onrender.com/api/analytics/track', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        trackingId: '${trackingId}', // 🔒 FIXED: Do not change
-        utmSource: 'login',          // 🔒 FIXED: Do not change
-        
-        // 🛠️ CUSTOMIZABLE FIELDS: 
-        // - Change 'currentUser' to your own object name if different
-        // - Change '.username' or '.name' to match your user properties
-        visitorName: currentUser?.username || currentUser?.name || 'Anonymous User',
-        
-        // - Change '.email' to match your user email property
-        visitorEmail: currentUser?.email || 'no-email@deploywatch.com'
-      })
-    }).catch(() => {});
+    // IMPORTANT: use window.deployWatchTrackView (NOT your own fetch call) — it
+    // reuses the same session/duplicate-detection as the tracking script, so
+    // this login event merges into today's visit instead of counting as a
+    // separate view. A raw fetch() here bypasses that and creates duplicates.
+    window.deployWatchTrackView?.({
+      // 🛠️ CUSTOMIZABLE FIELDS: 
+      // - Change 'currentUser' to your own object name if different
+      // - Change '.username' or '.name' to match your user properties
+      visitorName: currentUser?.username || currentUser?.name || 'Anonymous User',
+      
+      // - Change '.email' to match your user email property
+      visitorEmail: currentUser?.email || ''
+    });
     
     // Your existing navigation logic...
   }
@@ -45,20 +42,17 @@ const handleGoogleSuccess = (credentialResponse) => {
   const googleUser = jwt_decode(credentialResponse.credential); 
 
   // 🚀 COPY & PASTE THIS TRACKING CODE HERE:
-  fetch('https://deploywatch.onrender.com/api/analytics/track', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      trackingId: '${trackingId}', // 🔒 FIXED: Do not change
-      utmSource: 'google_login',   // 🔒 FIXED: Do not change
-      
-      // 🛠️ CUSTOMIZABLE FIELDS:
-      // - Change 'googleUser' to match your decoded object variable (e.g., res, profile)
-      // - ⚠️ NOTE: '.name', '.given_name', and '.email' are standard Google OAuth keys. No need to change them.
-      visitorName: googleUser?.name || googleUser?.given_name || 'Google User',
-      visitorEmail: googleUser?.email || ''
-    })
-  }).catch(() => {});
+  // IMPORTANT: use window.deployWatchTrackView (NOT your own fetch call) — it
+  // reuses the same session/duplicate-detection as the tracking script, so
+  // this login event merges into today's visit instead of counting as a
+  // separate view. A raw fetch() here bypasses that and creates duplicates.
+  window.deployWatchTrackView?.({
+    // 🛠️ CUSTOMIZABLE FIELDS:
+    // - Change 'googleUser' to match your decoded object variable (e.g., res, profile)
+    // - ⚠️ NOTE: '.name', '.given_name', and '.email' are standard Google OAuth keys. No need to change them.
+    visitorName: googleUser?.name || googleUser?.given_name || 'Google User',
+    visitorEmail: googleUser?.email || ''
+  });
 };`,
 
   node: `// 📂 TYPE A: Backend Controller Login (Node.js / Express)
@@ -69,7 +63,13 @@ const loginUser = async (req, res) => {
   const dbUser = await User.findOne({ email });
 
   if (dbUser && (await dbUser.matchPassword(password))) {
-    
+
+    // Reads DeployWatch's own persistent visitor cookie (set by tracking.js)
+    // so this login event links to the same visitor instead of counting as
+    // a brand new one. 🔒 Do not change this block.
+    const uidMatch = (req.headers.cookie || '').match(/dw_uid=([^;]+)/);
+    const uid = uidMatch ? decodeURIComponent(uidMatch[1]) : '';
+
     // 🚀 COPY & PASTE THIS TRACKING CODE HERE (Before sending response):
     await fetch('https://deploywatch.onrender.com/api/analytics/track', {
       method: 'POST',
@@ -77,6 +77,7 @@ const loginUser = async (req, res) => {
       body: JSON.stringify({
         trackingId: '${trackingId}', // 🔒 FIXED: Do not change
         utmSource: 'login',          // 🔒 FIXED: Do not change
+        uid,                         // 🔒 FIXED: Do not change
         
         // 🛠️ CUSTOMIZABLE FIELDS:
         // - Change 'dbUser' to your own fetched user object variable (e.g., user, row)
@@ -97,6 +98,12 @@ app.get('/auth/google/callback', passport.authenticate('google'), async (req, re
   // 🔍 CUSTOMIZABLE VARIABLE: Change 'googleProfile' to your own variable name (e.g., user, profile)
   const googleProfile = req.user; 
 
+  // Reads DeployWatch's own persistent visitor cookie (set by tracking.js)
+  // so this login event links to the same visitor instead of counting as
+  // a brand new one. 🔒 Do not change this block.
+  const uidMatch = (req.headers.cookie || '').match(/dw_uid=([^;]+)/);
+  const uid = uidMatch ? decodeURIComponent(uidMatch[1]) : '';
+
   // 🚀 COPY & PASTE THIS TRACKING CODE HERE (Before redirecting):
   await fetch('https://deploywatch.onrender.com/api/analytics/track', {
     method: 'POST',
@@ -104,6 +111,7 @@ app.get('/auth/google/callback', passport.authenticate('google'), async (req, re
     body: JSON.stringify({
       trackingId: '${trackingId}', // 🔒 FIXED: Do not change
       utmSource: 'google_login',   // 🔒 FIXED: Do not change
+      uid,                         // 🔒 FIXED: Do not change
       
       // 🛠️ CUSTOMIZABLE FIELDS:
       // - Change 'googleProfile' to match your passport user variable name (e.g., req.user)
@@ -126,6 +134,7 @@ public function login(Request $request) {
         $payload = [
             'trackingId'   => '${trackingId}', // 🔒 FIXED: Do not change
             'utmSource'    => 'login',          // 🔒 FIXED: Do not change
+            'uid'          => $_COOKIE['dw_uid'] ?? '', // 🔒 FIXED: Do not change
             
             // 🛠️ CUSTOMIZABLE FIELDS:
             // - Change '$laravelUser' to match your user variable
@@ -162,6 +171,7 @@ public function handleGoogleCallback() {
     $payload = [
         'trackingId'   => '${trackingId}', // 🔒 FIXED: Do not change
         'utmSource'    => 'google_login',   // 🔒 FIXED: Do not change
+        'uid'          => $_COOKIE['dw_uid'] ?? '', // 🔒 FIXED: Do not change
         
         // 🛠️ CUSTOMIZABLE FIELDS:
         // - Change '$googleUser' to match your Socialite user object variable
@@ -203,6 +213,7 @@ def user_login(request):
                 json={
                     'trackingId': '${trackingId}', # 🔒 FIXED: Do not change
                     'utmSource': 'login',          # 🔒 FIXED: Do not change
+                    'uid': request.COOKIES.get('dw_uid', ''), # 🔒 FIXED: Do not change (Flask: request.cookies.get(...))
                     
                     # 🛠️ CUSTOMIZABLE FIELDS:
                     # - Change 'user' to match your authenticated user instance variable
@@ -231,6 +242,7 @@ def google_callback(request):
             json={
                 'trackingId': '${trackingId}', # 🔒 FIXED: Do not change
                 'utmSource': 'google_login',   # 🔒 FIXED: Do not change
+                'uid': request.COOKIES.get('dw_uid', ''), # 🔒 FIXED: Do not change (Flask: request.cookies.get(...))
                 
                 # 🛠️ CUSTOMIZABLE FIELDS:
                 # - Change 'profile' to match your own dictionary variable name
@@ -245,15 +257,26 @@ def google_callback(request):
 
   java: `// 📂 TYPE A: Backend Form Login (Java / Spring Boot)
 @PostMapping("/api/auth/login")
-public ResponseEntity<?> loginUser(@RequestBody LoginRequest req) {
+public ResponseEntity<?> loginUser(@RequestBody LoginRequest req, HttpServletRequest httpReq) {
     // 🔍 CUSTOMIZABLE VARIABLE: Change 'javaUser' to your local Entity class object name (e.g., user, account)
     User javaUser = userService.authenticate(req.getEmail(), req.getPassword());
+
+    // Reads DeployWatch's own persistent visitor cookie (set by tracking.js)
+    // so this login event links to the same visitor instead of counting as
+    // a brand new one. 🔒 Do not change this block.
+    String uid = "";
+    if (httpReq.getCookies() != null) {
+        for (Cookie c : httpReq.getCookies()) {
+            if ("dw_uid".equals(c.getName())) uid = c.getValue();
+        }
+    }
     
     if (javaUser != null) {
         // 🚀 COPY & PASTE THIS TRACKING CODE HERE:
         Map<String, String> payload = Map.of(
             "trackingId", "${trackingId}", // 🔒 FIXED: Do not change
             "utmSource", "login",          // 🔒 FIXED: Do not change
+            "uid", uid,                    // 🔒 FIXED: Do not change
             
             // 🛠️ CUSTOMIZABLE FIELDS:
             // - Change 'javaUser' to match your authenticated Entity instance name
@@ -273,14 +296,25 @@ public ResponseEntity<?> loginUser(@RequestBody LoginRequest req) {
 
   googleJava: `// 📂 TYPE B: Backend Google Login / Spring Security OAuth2 (Java / Spring Boot)
 @GetMapping("/login/oauth2/code/google")
-public void onGoogleLoginSuccess(Authentication authentication) {
+public void onGoogleLoginSuccess(Authentication authentication, HttpServletRequest httpReq) {
     // 🔍 CUSTOMIZABLE VARIABLE: Change 'oauth2User' to your preferred casted variable name
     OAuth2User oauth2User = (OAuth2User) authentication.getPrincipal();
+
+    // Reads DeployWatch's own persistent visitor cookie (set by tracking.js)
+    // so this login event links to the same visitor instead of counting as
+    // a brand new one. 🔒 Do not change this block.
+    String uid = "";
+    if (httpReq.getCookies() != null) {
+        for (Cookie c : httpReq.getCookies()) {
+            if ("dw_uid".equals(c.getName())) uid = c.getValue();
+        }
+    }
 
     // 🚀 COPY & PASTE THIS TRACKING CODE HERE:
     Map<String, String> payload = Map.of(
         "trackingId", "${trackingId}", // 🔒 FIXED: Do not change
         "utmSource", "google_login",   // 🔒 FIXED: Do not change
+        "uid", uid,                    // 🔒 FIXED: Do not change
         
         // 🛠️ CUSTOMIZABLE FIELDS:
         // - Change 'oauth2User' to match your Principal variable name
@@ -304,6 +338,11 @@ public async Task<IActionResult> Login([FromBody] LoginModel model)
         // 🔍 CUSTOMIZABLE VARIABLE: Change 'netUser' to your local Identity User variable (e.g., user, appUser)
         var netUser = await _userManager.FindByEmailAsync(model.Email);
 
+        // Reads DeployWatch's own persistent visitor cookie (set by tracking.js)
+        // so this login event links to the same visitor instead of counting as
+        // a brand new one. 🔒 Do not change this block.
+        var uid = Request.Cookies["dw_uid"] ?? "";
+
         // 🚀 COPY & PASTE THIS TRACKING CODE HERE:
         try {
             await httpClient.PostAsJsonAsync(
@@ -311,6 +350,7 @@ public async Task<IActionResult> Login([FromBody] LoginModel model)
                 new {
                     trackingId = "${trackingId}", // 🔒 FIXED: Do not change
                     utmSource = "login",          // 🔒 FIXED: Do not change
+                    uid = uid,                    // 🔒 FIXED: Do not change
                     
                     // 🛠️ CUSTOMIZABLE FIELDS:
                     // - Change 'netUser' to match your application user object variable
@@ -333,6 +373,11 @@ public async Task<IActionResult> GoogleCallback() {
     // 🔍 CUSTOMIZABLE VARIABLE: Change 'googleClaims' to your local ClaimsPrincipal instance variable name
     var googleClaims = info.Principal;
 
+    // Reads DeployWatch's own persistent visitor cookie (set by tracking.js)
+    // so this login event links to the same visitor instead of counting as
+    // a brand new one. 🔒 Do not change this block.
+    var uid = Request.Cookies["dw_uid"] ?? "";
+
     // 🚀 COPY & PASTE THIS TRACKING CODE HERE:
     try {
         await httpClient.PostAsJsonAsync(
@@ -340,6 +385,7 @@ public async Task<IActionResult> GoogleCallback() {
             new {
                 trackingId = "${trackingId}", // 🔒 FIXED: Do not change
                 utmSource = "google_login",   // 🔒 FIXED: Do not change
+                uid = uid,                    // 🔒 FIXED: Do not change
                 
                 // 🛠️ CUSTOMIZABLE FIELDS:
                 // - Change 'googleClaims' to match your ClaimsPrincipal instance name
@@ -459,8 +505,7 @@ const SetupGuideModal = ({ project, onClose }) => {
                 few seconds/minutes later, it does <strong>not</strong> add a 2nd view — it's still the same visit.
                 A new view only counts if the same device comes back after <strong>30+ minutes</strong>.
                 So if 2 different people log in from the same device within 30 minutes, that's just <strong>1 view</strong>, not 2 —
-                same rule for every project, with or without login.This 30-minute rule is based on the device/browser/Network, not the account.
-            
+                same rule for every project, with or without login.
               </div>
             </div>
           )}
