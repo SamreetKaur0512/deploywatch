@@ -48,7 +48,7 @@ async function withTrackLock(key, fn) {
 // @access  Public (no auth - called from external sites)
 const trackView = async (req, res) => {
   try {
-    const { trackingId, referrer, utmSource, utmMedium, visitorName, visitorEmail, sessionId } = req.body;
+    const { trackingId, referrer, utmSource, utmMedium, visitorName, visitorEmail, sessionId, uid, encryptedVisitorData } = req.body;
     console.log(`[TRACK] Request received: trackingId=${trackingId}, sessionId=${sessionId}, visitorName=${visitorName}`);
 
     if (!trackingId) {
@@ -111,6 +111,26 @@ const result = await withTrackLock(lockKey, async () => {
 
   if (recentDuplicate) {
     console.log(`[TRACK] BLOCKED: Duplicate view for project=${project._id}, IP=${ip}, sessionId=${sessionId}. Last view at ${recentDuplicate.viewedAt}`);
+
+    // Common case: visitor loads the login page first (anonymous — no name/email
+    // known yet), that view gets counted, then they log in and the page reloads —
+    // that second request is correctly blocked as a duplicate, but now the
+    // visitor's name/email IS known (plaintext or encrypted). Instead of
+    // discarding that identity info, backfill it onto the view we already
+    // counted, as long as it's still empty.
+    const newName  = (visitorName  || '').trim();
+    const newEmail = (visitorEmail || '').trim();
+    const hasNewIdentity = newName || newEmail || encryptedVisitorData;
+    const existingHasIdentity = recentDuplicate.visitorName || recentDuplicate.visitorEmail || recentDuplicate.encryptedVisitorData;
+    if (hasNewIdentity && !existingHasIdentity) {
+      if (encryptedVisitorData) recentDuplicate.encryptedVisitorData = encryptedVisitorData;
+      recentDuplicate.visitorName  = newName;
+      recentDuplicate.visitorEmail = newEmail;
+      if (uid && !recentDuplicate.uid) recentDuplicate.uid = uid;
+      await recentDuplicate.save();
+      console.log(`[TRACK] BACKFILLED identity onto existing view=${recentDuplicate._id}`);
+    }
+
     return { blocked: true };
   }
 
@@ -119,6 +139,30 @@ const result = await withTrackLock(lockKey, async () => {
   // Check if this IP has EVER visited this project before (unique visitor)
   const previousVisit = await View.findOne({ project: project._id, ipAddress: ip });
   const isUniqueVisitor = !previousVisit;
+
+  // Returning visitor recognition: if this request didn't capture any identity
+  // itself (e.g. the developer's project uses cookie-based auth, so the page
+  // had nothing in localStorage to detect) but carries our own persistent
+  // uid cookie, look up the last time THIS uid gave us an identity for this
+  // project and carry it forward. We only ever copy ciphertext/plaintext that
+  // was already submitted before — we never see or need to understand it.
+  let carriedName = visitorName || '';
+  let carriedEmail = visitorEmail || '';
+  let carriedEncrypted = encryptedVisitorData || '';
+  if (uid && !carriedName && !carriedEmail && !carriedEncrypted) {
+    const lastKnownIdentity = await View.findOne({
+      project: project._id,
+      uid,
+      $or: [{ encryptedVisitorData: { $ne: '' } }, { visitorName: { $ne: '' } }, { visitorEmail: { $ne: '' } }],
+    }).sort({ viewedAt: -1 });
+
+    if (lastKnownIdentity) {
+      carriedName = lastKnownIdentity.visitorName || '';
+      carriedEmail = lastKnownIdentity.visitorEmail || '';
+      carriedEncrypted = lastKnownIdentity.encryptedVisitorData || '';
+      console.log(`[TRACK] Carried forward identity for returning uid=${uid} on project=${project._id}`);
+    }
+  }
 
   // Create view record
   const view = await View.create({
@@ -134,9 +178,11 @@ const result = await withTrackLock(lockKey, async () => {
     utmMedium: utmMedium || '',
     isRecruiter,
     isUniqueVisitor,
-    visitorName:  visitorName  || '',
-    visitorEmail: visitorEmail || '',
+    visitorName:  carriedName,
+    visitorEmail: carriedEmail,
+    encryptedVisitorData: carriedEncrypted,
     sessionId: sessionId || '',
+    uid: uid || '',
   });
 
   console.log(`[TRACK] COUNTED: View created for project=${project._id}, IP=${ip}, isUniqueVisitor=${isUniqueVisitor}`);
@@ -383,4 +429,47 @@ const getProjectRankings = async (req, res, next) => {
   }
 };
 
-module.exports = { trackView, getDashboardStats, getAllViews, getProjectRankings };
+// @desc    Get a project's public key so the tracking script can encrypt
+//          visitor identity client-side before sending it
+// @route   GET /api/analytics/public-key/:trackingId
+// @access  Public — a public key is meant to be public
+const getPublicKey = async (req, res) => {
+  try {
+    const project = await Project.findOne({ trackingId: req.params.trackingId }).select('visitorEncryptionPublicKey');
+    res.header('Access-Control-Allow-Origin', '*');
+    if (!project || !project.visitorEncryptionPublicKey) {
+      return res.status(200).json({ success: true, publicKey: null });
+    }
+    res.status(200).json({ success: true, publicKey: project.visitorEncryptionPublicKey });
+  } catch (error) {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.status(200).json({ success: true, publicKey: null });
+  }
+};
+
+// @desc    Get raw ciphertext blobs for a project's views, so the developer's
+//          own browser can decrypt them locally with their private key.
+// @route   GET /api/analytics/encrypted-views/:projectId
+// @access  Private (owner only) — server never decrypts, just returns ciphertext
+const getEncryptedViews = async (req, res, next) => {
+  try {
+    const project = await Project.findOne({ _id: req.params.projectId, owner: req.user._id });
+    if (!project) {
+      return res.status(404).json({ success: false, message: 'Project not found.' });
+    }
+
+    const views = await View.find({
+      project: project._id,
+      $or: [{ encryptedVisitorData: { $ne: '' } }, { visitorName: { $ne: '' } }, { visitorEmail: { $ne: '' } }],
+    })
+      .select('encryptedVisitorData visitorName visitorEmail country city device viewedAt')
+      .sort({ viewedAt: -1 })
+      .limit(500);
+
+    res.status(200).json({ success: true, views });
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = { trackView, getDashboardStats, getAllViews, getProjectRankings, getPublicKey, getEncryptedViews };

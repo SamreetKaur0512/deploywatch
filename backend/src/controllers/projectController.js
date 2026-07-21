@@ -287,6 +287,33 @@ const checkProjectStatus = async (project, io) => {
   return { status, responseTime, lastChecked: new Date() };
 };
 
+// @desc    Save/update a project's visitor-identity-encryption public key
+// @route   PATCH /api/projects/:id/public-key
+// @access  Private (owner only)
+// The public key is generated in the developer's OWN browser (Web Crypto API)
+// and is safe to store as plaintext. The matching private key never leaves the
+// developer's device and is never sent to this server — see PrivacyKeysModal.jsx.
+const setPublicKey = async (req, res, next) => {
+  try {
+    const { publicKey } = req.body;
+    if (!publicKey || typeof publicKey !== 'string') {
+      return res.status(400).json({ success: false, message: 'publicKey is required.' });
+    }
+
+    const project = await Project.findOne({ _id: req.params.id, owner: req.user._id });
+    if (!project) {
+      return res.status(404).json({ success: false, message: 'Project not found.' });
+    }
+
+    project.visitorEncryptionPublicKey = publicKey;
+    await project.save();
+
+    res.status(200).json({ success: true, message: 'Encryption key saved.' });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   addProject,
   getMyProjects,
@@ -296,4 +323,5 @@ module.exports = {
   pingProject,
   getProjectAnalytics,
   checkProjectStatus,
+  setPublicKey,
 };

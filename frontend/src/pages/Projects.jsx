@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   Plus, ExternalLink, GitBranch, Trash2, Edit2,
-  RefreshCw, Activity, BarChart2, Copy, Check, Lock, Users, BookOpen
+  RefreshCw, Activity, BarChart2, Copy, Check, Lock, Users, BookOpen, ShieldCheck
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
@@ -10,6 +10,7 @@ import ProjectModal from '../components/projects/ProjectModal';
 import CredentialsModal from '../components/projects/CredentialsModal';
 import HowToUse from '../components/projects/HowToUse';
 import SetupGuideModal from '../components/projects/SetupGuideModal';
+import PrivacyKeysModal from '../components/projects/PrivacyKeysModal';
 import './Projects.css';
 
 const PLATFORMS = ['Vercel', 'Render', 'Netlify', 'Heroku', 'GitHub Pages', 'Railway', 'Cyclic', 'Other'];
@@ -31,6 +32,7 @@ const Projects = () => {
   const [copied, setCopied] = useState(null);
   const [credProject, setCredProject] = useState(null);
   const [setupProject, setSetupProject] = useState(null);
+  const [privacyProject, setPrivacyProject] = useState(null);
 
   const fetchProjects = async () => {
     setLoading(true);
@@ -187,6 +189,9 @@ const Projects = () => {
                   <button className="btn btn-ghost btn-sm" onClick={() => setCredProject(p)} title="Credentials">
                     <Lock size={12} style={{ color: p.hasMongoUri ? 'var(--green)' : 'var(--text-muted)' }} /> Creds
                   </button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => setPrivacyProject(p)} title="Visitor Data Encryption">
+                    <ShieldCheck size={12} style={{ color: p.visitorEncryptionPublicKey ? 'var(--green)' : 'var(--text-muted)' }} /> Privacy
+                  </button>
                   <button className="btn btn-danger btn-sm" onClick={() => handleDelete(p._id, p.name)}>
                     <Trash2 size={12} /> Delete
                   </button>
@@ -209,6 +214,13 @@ const Projects = () => {
           project={credProject}
           onClose={() => setCredProject(null)}
           onSaved={fetchProjects}
+        />
+      )}
+
+      {privacyProject && (
+        <PrivacyKeysModal
+          project={privacyProject}
+          onClose={() => setPrivacyProject(null)}
         />
       )}
 

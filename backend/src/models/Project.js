@@ -50,6 +50,13 @@ const projectSchema = new mongoose.Schema(
     trackingEnabled: { type: Boolean, default: true },
     trackingId: { type: String, unique: true, sparse: true },
 
+    // Public key (SPKI, base64) for end-to-end encrypting visitor name/email
+    // captured by the tracking script. Safe to store as plaintext — that's the
+    // point of a public key. The matching private key is generated in the
+    // developer's own browser and is NEVER sent to or stored by DeployWatch;
+    // only the developer can decrypt visitor identities encrypted with this key.
+    visitorEncryptionPublicKey: { type: String, default: '' },
+
     // Encrypted credentials (ciphertext only — server never stores plain values)
     encryptedMongoUri:       { type: String, default: '', select: false },
     encryptedGithubToken:    { type: String, default: '', select: false },

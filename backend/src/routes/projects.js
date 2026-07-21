@@ -8,6 +8,7 @@ const {
   deleteProject,
   pingProject,
   getProjectAnalytics,
+  setPublicKey,
 } = require('../controllers/projectController');
 const { protect } = require('../middleware/auth');
 
@@ -17,5 +18,6 @@ router.route('/').get(getMyProjects).post(addProject);
 router.route('/:id').get(getProject).put(updateProject).delete(deleteProject);
 router.post('/:id/ping', pingProject);
 router.get('/:id/analytics', getProjectAnalytics);
+router.patch('/:id/public-key', setPublicKey);
 
 module.exports = router;
